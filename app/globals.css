@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #F5F0D0;
+  --bg-soft: #FAF6E3;
+  --accent: #E8E0A0;
+  --ink: #2C2A1E;
+  --ink-2: #6B6650;
+  --card: #FFFFFF;
+  --border: #D8D0A8;
+}
+
+@layer base {
+  body {
+    background-color: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-sans), system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  input[type='range'] {
+    accent-color: var(--ink);
+    width: 100%;
+    height: 4px;
+    cursor: pointer;
+  }
+}
+
+@layer utilities {
+  .font-serif {
+    font-family: var(--font-serif), Georgia, serif;
+  }
+}

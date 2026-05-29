@@ -1,5 +1,9 @@
-import type { AppData, QuestionnaireResponses } from './types'
+import type { AppData, QuestionnaireResponses, BloodPanel } from './types'
 import { computeAll } from './scoring'
+
+export function saveBloodPanel(panel: BloodPanel): void {
+  mockData.bloodPanel = panel
+}
 
 export function saveQuestionnaire(answers: QuestionnaireResponses): void {
   mockData.questionnaire = answers
@@ -45,13 +49,20 @@ export const mockData: AppData = {
 
   bloodPanel: {
     'Complete Blood Count': {
-      Haemoglobin:          { value: '13.8', unit: 'g/dL',   refRange: '13.5–17.5', status: 'normal' },
-      Haematocrit:          { value: '41',   unit: '%',      refRange: '41–53',     status: 'normal' },
-      'White Blood Cells':  { value: '6.2',  unit: '×10⁹/L', refRange: '4–11',      status: 'normal' },
-      Platelets:            { value: '210',  unit: '×10⁹/L', refRange: '150–400',   status: 'normal' },
-      Neutrophils:          { value: '3.8',  unit: '×10⁹/L', refRange: '1.8–7.7',   status: 'normal' },
-      Lymphocytes:          { value: '1.9',  unit: '×10⁹/L', refRange: '1.0–4.8',   status: 'normal' },
-      'NLR':                { value: '2.0',  unit: '',        refRange: '<3.0',      status: 'normal' },
+      Haemoglobin:           { value: '13.8', unit: 'g/dL',    refRange: '13.5–17.5', status: 'normal' },
+      Haematocrit:           { value: '41',   unit: '%',       refRange: '41–53',     status: 'normal' },
+      MCV:                   { value: '88',   unit: 'fL',      refRange: '80–100',    status: 'normal' },
+      MCH:                   { value: '29.5', unit: 'pg',      refRange: '27–33',     status: 'normal' },
+      MCHC:                  { value: '33.5', unit: 'g/dL',    refRange: '32–36',     status: 'normal' },
+      RDW:                   { value: '13.2', unit: '%',       refRange: '11.5–14.5', status: 'normal' },
+      'White Blood Cells':   { value: '6.2',  unit: '×10⁹/L', refRange: '4–11',      status: 'normal' },
+      Neutrophils:           { value: '3.8',  unit: '×10⁹/L', refRange: '1.8–7.7',   status: 'normal' },
+      Lymphocytes:           { value: '1.9',  unit: '×10⁹/L', refRange: '1.0–4.8',   status: 'normal' },
+      Monocytes:             { value: '0.5',  unit: '×10⁹/L', refRange: '0.2–1.0',   status: 'normal' },
+      Eosinophils:           { value: '0.18', unit: '×10⁹/L', refRange: '0.04–0.4',  status: 'normal' },
+      Basophils:             { value: '0.03', unit: '×10⁹/L', refRange: '0.0–0.1',   status: 'normal' },
+      Platelets:             { value: '210',  unit: '×10⁹/L', refRange: '150–400',   status: 'normal' },
+      NLR:                   { value: '2.0',  unit: '',        refRange: '<3.0',      status: 'normal' },
     },
     'Acute Phase Reactants': {
       'hs-CRP':   { value: '2.1', unit: 'mg/L',  refRange: '<1.0',      status: 'borderline' },
@@ -107,14 +118,29 @@ export const mockData: AppData = {
       'FT4':  { value: '1.2', unit: 'ng/dL', refRange: '0.8–1.8', status: 'normal' },
     },
     'Urinalysis': {
-      'Protein':  { value: 'Negative', unit: '', refRange: 'Negative', status: 'normal' },
-      'Glucose':  { value: 'Negative', unit: '', refRange: 'Negative', status: 'normal' },
-      'Ketones':  { value: 'Negative', unit: '', refRange: 'Negative', status: 'normal' },
-      'pH':       { value: '6.0',      unit: '', refRange: '4.5–8.0',  status: 'normal' },
+      'Colour & Transparency': { value: 'Yellow, Clear', unit: '',    refRange: 'Yellow, Clear',  status: 'normal' },
+      'Protein':               { value: 'Negative',      unit: '',    refRange: 'Negative',       status: 'normal' },
+      'Glucose':               { value: 'Negative',      unit: '',    refRange: 'Negative',       status: 'normal' },
+      'Ketones':               { value: 'Negative',      unit: '',    refRange: 'Negative',       status: 'normal' },
+      'pH':                    { value: '6.0',            unit: '',    refRange: '4.5–8.0',        status: 'normal' },
+      'RBC':                   { value: '0',              unit: '/hpf', refRange: '0–2',           status: 'normal' },
+      'Pus Cells':             { value: '3',              unit: '/hpf', refRange: '0–5',           status: 'normal' },
+      'Epithelial Cells':      { value: 'Occasional',     unit: '/hpf', refRange: 'Occasional',    status: 'normal' },
+      'Casts':                 { value: 'None seen',      unit: '',    refRange: 'None seen',      status: 'normal' },
+      'Crystals':              { value: 'None seen',      unit: '',    refRange: 'None seen',      status: 'normal' },
+      'Bacteria':              { value: 'Absent',         unit: '',    refRange: 'Absent',         status: 'normal' },
     },
     'Hormones': {
       'Morning Cortisol': { value: '18',  unit: 'µg/dL',  refRange: '6–23',    status: 'normal' },
       'DHEA-S':           { value: '220', unit: 'µg/dL',  refRange: '85–690',  status: 'normal' },
+    },
+    'Hormones · Optional': {
+      'SHBG':                       { value: '', unit: 'nmol/L', refRange: '10–57',    status: undefined },
+      'Total Testosterone (men)':   { value: '', unit: 'ng/dL',  refRange: '300–1000', status: undefined },
+      'Free Testosterone (men)':    { value: '', unit: 'pg/mL',  refRange: '50–210',   status: undefined },
+      'Estradiol (women)':          { value: '', unit: 'pg/mL',  refRange: '30–400',   status: undefined },
+      'FSH (women)':                { value: '', unit: 'mIU/mL', refRange: '1.5–12',   status: undefined },
+      'LH (women)':                 { value: '', unit: 'mIU/mL', refRange: '1.9–12.5', status: undefined },
     },
   },
 

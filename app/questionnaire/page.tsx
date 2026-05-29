@@ -416,7 +416,7 @@ export default function QuestionnairePage() {
   function handleFinish() {
     const answers: QuestionnaireResponses = { goals, stress, activity, sleep, nutrition, cognition, symptoms }
     saveQuestionnaire(answers)
-    router.push('/dashboard')
+    router.push('/labs')
   }
 
   return (

@@ -1,13 +1,27 @@
 import type { AppData, QuestionnaireResponses } from './types'
 import { computeAll } from './scoring'
 
+export function saveQuestionnaire(answers: QuestionnaireResponses): void {
+  mockData.questionnaire = answers
+  mockData.user.goals = answers.goals
+  mockData.currentScores = computeAll(answers)
+  const today = new Date().toISOString().split('T')[0]
+  const last = mockData.scoreHistory[mockData.scoreHistory.length - 1]
+  if (last) {
+    last.date = today
+    last.scores = mockData.currentScores
+  } else {
+    mockData.scoreHistory.push({ date: today, scores: mockData.currentScores })
+  }
+}
+
 const questionnaire: QuestionnaireResponses = {
   goals: ['energy', 'sleep', 'clarity'],
   stress: { q1: 3, q2: 3, q3: 2, q4: 3 },
   activity: { vigorous: 2, moderate: 4, energy: 3, sitting: 7 },
   sleep: { duration: 4, latency: 3, restedness: 3, waking: 1 },
   nutrition: { fruitVeg: 3, water: 3, processed: 2, mealRegularity: 3, alcohol: 2 },
-  cognition: { focus: 3, fog: 2, memory: 3, taskSwitching: 3 },
+  cognition: { focus: 3, fog: 2, memory: 3, trainOfThought: 2, wordFinding: 2 },
   symptoms: {
     physical: ['Headaches'],
     energyMood: ['Afternoon crashes', 'Low motivation'],

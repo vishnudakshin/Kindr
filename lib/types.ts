@@ -38,10 +38,11 @@ export interface NutritionResponses {
 }
 
 export interface CognitionResponses {
-  focus: number        // 1–5
-  fog: number          // 1–5 (reverse-scored)
-  memory: number       // 1–5
-  taskSwitching: number // 1–5
+  focus: number          // 1–5
+  fog: number            // 1–5 (reverse-scored)
+  memory: number         // 1–5
+  trainOfThought: number // 1–5 (reverse-scored: more frequent = worse)
+  wordFinding: number    // 1–5 (reverse-scored: more frequent = worse)
 }
 
 export interface SymptomsResponses {

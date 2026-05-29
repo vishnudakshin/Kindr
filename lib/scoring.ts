@@ -90,14 +90,15 @@ export function scoreNutrition({ fruitVeg, water, processed, mealRegularity, alc
 
 // ─────────────────────────────────────────────
 // Cognition score
-// focus: 1–5; fog: 1–5 (reverse); memory: 1–5; taskSwitching: 1–5
+// focus: 1–5; fog: 1–5 (reverse); memory: 1–5; trainOfThought: 1–5 (reverse); wordFinding: 1–5 (reverse)
 // ─────────────────────────────────────────────
-export function scoreCognition({ focus, fog, memory, taskSwitching }: CognitionResponses): number {
-  const focusNorm  = norm(focus, 1, 5)
-  const fogNorm    = norm(6 - fog, 1, 5)           // reverse: no fog = best
-  const memNorm    = norm(memory, 1, 5)
-  const switchNorm = norm(taskSwitching, 1, 5)
-  return clamp(Math.round((focusNorm + fogNorm + memNorm + switchNorm) / 4))
+export function scoreCognition({ focus, fog, memory, trainOfThought, wordFinding }: CognitionResponses): number {
+  const focusNorm = norm(focus, 1, 5)
+  const fogNorm   = norm(6 - fog, 1, 5)             // reverse: no fog = best
+  const memNorm   = norm(memory, 1, 5)
+  const totNorm   = norm(6 - trainOfThought, 1, 5)  // reverse: never losing thread = best
+  const wfNorm    = norm(6 - wordFinding, 1, 5)     // reverse: no word-finding issues = best
+  return clamp(Math.round((focusNorm + fogNorm + memNorm + totNorm + wfNorm) / 5))
 }
 
 // ─────────────────────────────────────────────

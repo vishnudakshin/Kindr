@@ -105,6 +105,20 @@ export interface ScoreSnapshot {
   scores: WellnessScores
 }
 
+export interface DayEntry {
+  date: string
+  tasksCompleted: number
+  tasksTotal: number
+}
+
+export interface AssessmentCycle {
+  id: string
+  startDate: string
+  endDate?: string
+  days: DayEntry[]
+  finalScores?: WellnessScores
+}
+
 export interface UserProfile {
   name: string
   dateJoined: string
@@ -120,4 +134,6 @@ export interface AppData {
   planItems: PlanItem[]
   resources: Resource[]
   scoreHistory: ScoreSnapshot[]
+  currentCycle: AssessmentCycle
+  previousCycles: AssessmentCycle[]
 }

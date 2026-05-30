@@ -16,6 +16,8 @@ const config: Config = {
         'ink-2': '#6B6650',
         card: '#FFFFFF',
         border: '#D8D0A8',
+        leaf: '#6B8F4E',
+        'leaf-soft': '#9BB87A',
       },
       fontFamily: {
         serif: ['var(--font-serif)', 'Georgia', 'serif'],

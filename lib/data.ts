@@ -1,8 +1,54 @@
-import type { AppData, QuestionnaireResponses, BloodPanel } from './types'
+import type { AppData, QuestionnaireResponses, BloodPanel, DayEntry, AssessmentCycle } from './types'
 import { computeAll } from './scoring'
+
+// ── Cycle day generator ────────────────────────────────────────────────────────
+
+function makeDays(startDate: string, count: number): DayEntry[] {
+  const days: DayEntry[] = []
+  for (let i = 0; i < count; i++) {
+    const d = new Date(startDate + 'T00:00:00Z')
+    d.setUTCDate(d.getUTCDate() + i)
+    const date = d.toISOString().split('T')[0]
+
+    const h1 = Math.abs(Math.sin(i * 2.3 + 0.7))
+    const h2 = Math.abs(Math.sin(i * 5.1 + 1.3))
+
+    if (h1 < 0.15) {
+      days.push({ date, tasksCompleted: 0, tasksTotal: 10 })
+      continue
+    }
+    const week = Math.floor(i / 7)
+    const base = week <= 2 ? 4 + week : 7
+    const jitter = Math.floor(h2 * 5) - 2
+    const completed = Math.max(1, Math.min(10, base + jitter))
+    days.push({ date, tasksCompleted: completed, tasksTotal: 10 })
+  }
+  return days
+}
 
 export function saveBloodPanel(panel: BloodPanel): void {
   mockData.bloodPanel = panel
+}
+
+export function getCycleDay(cycle: ReturnType<typeof makeDays>[number]['date'], startDate: string): number {
+  const start = new Date(startDate + 'T00:00:00Z')
+  const target = new Date(cycle + 'T00:00:00Z')
+  return Math.round((target.getTime() - start.getTime()) / 86_400_000)
+}
+
+export function getDayEntry(date: string) {
+  return mockData.currentCycle.days.find(d => d.date === date)
+}
+
+export function saveTodayEntry(tasksCompleted: number, tasksTotal: number): void {
+  const today = new Date().toISOString().split('T')[0]
+  const existing = mockData.currentCycle.days.find(d => d.date === today)
+  if (existing) {
+    existing.tasksCompleted = tasksCompleted
+    existing.tasksTotal = tasksTotal
+  } else {
+    mockData.currentCycle.days.push({ date: today, tasksCompleted, tasksTotal })
+  }
 }
 
 export function saveQuestionnaire(answers: QuestionnaireResponses): void {
@@ -180,4 +226,22 @@ export const mockData: AppData = {
       scores: currentScores,
     },
   ],
+
+  previousCycles: [
+    {
+      id: 'cycle-1',
+      startDate: '2024-10-15',
+      endDate: '2025-01-15',
+      days: makeDays('2024-10-15', 90),
+      finalScores: { nutrition: 55, sleep: 50, activity: 58, cognition: 60, stress: 52, overall: 55 },
+    } satisfies AssessmentCycle,
+  ],
+
+  currentCycle: {
+    id: 'cycle-2',
+    startDate: '2025-01-15',
+    endDate: '2025-04-15',
+    days: makeDays('2025-01-15', 90),
+    finalScores: currentScores,
+  } satisfies AssessmentCycle,
 }

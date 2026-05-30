@@ -1,0 +1,520 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{--y:#F5F0D0;--yd:#E8E0A0;--ink:#2C2A1E;--ink2:#6B6650;--card:#FFFFFF;--border:#D8D0A8;}
+body{font-family:var(--font-sans);}
+.page{background:var(--y);min-height:600px;padding:0 0 2rem;}
+.topbar{background:var(--y);padding:1.25rem 1.5rem 0;display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;}
+.brand{display:flex;align-items:center;gap:7px;}
+.brand-name{font-family:var(--font-serif);font-size:18px;font-weight:500;color:var(--ink);}
+.brand-leaf{font-size:15px;color:var(--ink2);}
+.step-counter{font-size:12px;color:var(--ink2);}
+.progress{height:3px;background:var(--yd);margin:0 1.5rem 1.5rem;}
+.progress-fill{height:100%;background:var(--ink);border-radius:2px;transition:width 0.4s ease;}
+.step-wrap{padding:0 1.5rem;}
+.step-label{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink2);margin-bottom:6px;}
+.step-title{font-size:19px;font-weight:500;color:var(--ink);line-height:1.35;margin-bottom:4px;}
+.step-sub{font-size:13px;color:var(--ink2);margin-bottom:1.5rem;line-height:1.5;}
+.q-block{background:var(--card);border:0.5px solid var(--border);border-radius:16px;padding:1.25rem 1.25rem 1rem;margin-bottom:12px;}
+.q-text{font-size:14px;font-weight:500;color:var(--ink);margin-bottom:4px;}
+.q-hint{font-size:12px;color:var(--ink2);margin-bottom:14px;}
+.slider-inner{display:flex;align-items:center;gap:12px;}
+.icon-bubble{width:42px;height:42px;border-radius:50%;background:var(--y);display:flex;align-items:center;justify-content:center;flex-shrink:0;border:0.5px solid var(--border);}
+.icon-bubble i{font-size:20px;color:var(--ink);}
+.slider-col{flex:1;display:flex;flex-direction:column;gap:6px;}
+.answer-label{font-size:13px;font-weight:500;color:var(--ink);}
+.answer-num{font-size:11px;color:var(--ink2);}
+input[type=range]{width:100%;accent-color:var(--ink);}
+.range-ends{display:flex;justify-content:space-between;}
+.range-ends span{font-size:11px;color:var(--ink2);}
+.choice-row{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px;}
+.choice-btn{border:1px solid var(--ink);border-radius:20px;padding:6px 13px;font-size:12px;cursor:pointer;background:#FFFFFF;color:var(--ink);transition:background .15s,color .15s;}
+.choice-btn:hover{background:var(--y);}
+.choice-btn.sel{background:var(--y);color:var(--ink);border-color:var(--ink);}
+.nav-row{display:flex;gap:10px;padding:1.25rem 1.5rem 0;}
+.btn-back{border:1.5px solid var(--ink);background:#FFFFFF;border-radius:10px;padding:11px 20px;font-size:14px;cursor:pointer;color:var(--ink);font-family:var(--font-sans);transition:background .15s;}
+.btn-back:hover{background:var(--y);}
+.btn-cont{flex:1;background:#FFFFFF;color:var(--ink);border:1.5px solid var(--ink);border-radius:10px;padding:12px 20px;font-size:14px;font-weight:500;cursor:pointer;font-family:var(--font-sans);transition:background .15s;}
+.btn-cont:hover{background:var(--y);}
+.step{display:none;}.step.active{display:block;}
+.goal-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;}
+.goal-card{background:#FFFFFF;border:1px solid var(--ink);border-radius:12px;padding:.9rem 1rem;cursor:pointer;transition:background .15s;}
+.goal-card:hover{background:var(--y);}
+.goal-card.sel{background:var(--y);border-color:var(--ink);}
+.goal-card i{font-size:18px;color:var(--ink2);margin-bottom:6px;display:block;}
+.goal-card .gc-title{font-size:13px;font-weight:500;color:var(--ink);}
+.goal-card .gc-sub{font-size:11px;color:var(--ink2);margin-top:2px;}
+</style>
+
+<div class="page">
+<h2 style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)">Kindr wellness questionnaire — 7 steps with dynamic icon sliders, yellow-accent hover states, and black-on-white buttons throughout.</h2>
+
+<div class="topbar">
+  <div class="brand">
+    <span class="brand-name">Kindr.</span>
+    <i class="ti ti-leaf brand-leaf" aria-hidden="true"></i>
+  </div>
+  <span class="step-counter" id="step-ctr">Step 1 of 7</span>
+</div>
+<div class="progress"><div class="progress-fill" id="prog" style="width:14%"></div></div>
+
+<div class="step-wrap">
+
+<!-- STEP 1: Goals -->
+<div class="step active" id="s1">
+  <div class="step-label">Getting started</div>
+  <div class="step-title">What brought you here today?</div>
+  <div class="step-sub">Select everything that resonates — there are no wrong answers.</div>
+  <div class="goal-grid">
+    <div class="goal-card" onclick="this.classList.toggle('sel')"><i class="ti ti-bolt" aria-hidden="true"></i><div class="gc-title">Low energy</div><div class="gc-sub">Fatigue, sluggishness</div></div>
+    <div class="goal-card" onclick="this.classList.toggle('sel')"><i class="ti ti-mood-smile" aria-hidden="true"></i><div class="gc-title">Mood & emotions</div><div class="gc-sub">Stress, anxiety, low mood</div></div>
+    <div class="goal-card" onclick="this.classList.toggle('sel')"><i class="ti ti-brain" aria-hidden="true"></i><div class="gc-title">Mental clarity</div><div class="gc-sub">Focus, memory, brain fog</div></div>
+    <div class="goal-card" onclick="this.classList.toggle('sel')"><i class="ti ti-moon" aria-hidden="true"></i><div class="gc-title">Sleep quality</div><div class="gc-sub">Trouble falling asleep</div></div>
+    <div class="goal-card" onclick="this.classList.toggle('sel')"><i class="ti ti-salad" aria-hidden="true"></i><div class="gc-title">Nutrition</div><div class="gc-sub">Diet, digestion, weight</div></div>
+    <div class="goal-card" onclick="this.classList.toggle('sel')"><i class="ti ti-run" aria-hidden="true"></i><div class="gc-title">Physical fitness</div><div class="gc-sub">Strength, endurance</div></div>
+    <div class="goal-card" onclick="this.classList.toggle('sel')"><i class="ti ti-shield-check" aria-hidden="true"></i><div class="gc-title">Prevention</div><div class="gc-sub">Proactive health</div></div>
+    <div class="goal-card" onclick="this.classList.toggle('sel')"><i class="ti ti-sparkles" aria-hidden="true"></i><div class="gc-title">General wellbeing</div><div class="gc-sub">Feel my best overall</div></div>
+  </div>
+</div>
+
+<!-- STEP 2: Stress -->
+<div class="step" id="s2">
+  <div class="step-label">Mental wellness · Stress</div>
+  <div class="step-title">How has stress been showing up lately?</div>
+  <div class="step-sub">Think about the past month and select the option that feels most true.</div>
+
+  <div class="q-block">
+    <div class="q-text">How often have you felt unable to control important things in your life?</div>
+    <div class="slider-inner" style="margin-top:12px;">
+      <div class="icon-bubble" id="s2q1-icon"><i class="ti ti-mood-happy" aria-hidden="true"></i></div>
+      <div class="slider-col">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;"><span class="answer-label" id="s2q1-lbl">Never</span><span class="answer-num" id="s2q1-num">1 / 5</span></div>
+        <input type="range" min="1" max="5" step="1" value="1" oninput="updateStress(this,'s2q1')">
+        <div class="range-ends"><span>Never</span><span>Very often</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="q-block">
+    <div class="q-text">How often have you felt confident handling personal problems?</div>
+    <div class="q-hint">Positively-worded — higher score reflects stronger resilience</div>
+    <div class="slider-inner">
+      <div class="icon-bubble" id="s2q2-icon"><i class="ti ti-mood-happy" aria-hidden="true"></i></div>
+      <div class="slider-col">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;"><span class="answer-label" id="s2q2-lbl">Never</span><span class="answer-num" id="s2q2-num">1 / 5</span></div>
+        <input type="range" min="1" max="5" step="1" value="1" oninput="updateStress(this,'s2q2')">
+        <div class="range-ends"><span>Never</span><span>Very often</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="q-block">
+    <div class="q-text">How often have you felt difficulties piling up beyond your control?</div>
+    <div class="slider-inner" style="margin-top:12px;">
+      <div class="icon-bubble" id="s2q3-icon"><i class="ti ti-mood-happy" aria-hidden="true"></i></div>
+      <div class="slider-col">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;"><span class="answer-label" id="s2q3-lbl">Never</span><span class="answer-num" id="s2q3-num">1 / 5</span></div>
+        <input type="range" min="1" max="5" step="1" value="1" oninput="updateStress(this,'s2q3')">
+        <div class="range-ends"><span>Never</span><span>Very often</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="q-block">
+    <div class="q-text">How often have you felt things were going your way?</div>
+    <div class="q-hint">Positively-worded — higher score means better mood and flow</div>
+    <div class="slider-inner">
+      <div class="icon-bubble" id="s2q4-icon"><i class="ti ti-mood-happy" aria-hidden="true"></i></div>
+      <div class="slider-col">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;"><span class="answer-label" id="s2q4-lbl">Never</span><span class="answer-num" id="s2q4-num">1 / 5</span></div>
+        <input type="range" min="1" max="5" step="1" value="1" oninput="updateStress(this,'s2q4')">
+        <div class="range-ends"><span>Never</span><span>Very often</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- STEP 3: Activity -->
+<div class="step" id="s3">
+  <div class="step-label">Physical wellness · Activity</div>
+  <div class="step-title">How does your body move through the week?</div>
+  <div class="step-sub">Think about a typical week over the past month.</div>
+  <div class="q-block">
+    <div class="q-text">Days per week you do vigorous activity</div>
+    <div class="q-hint">e.g. running, HIIT, cycling fast</div>
+    <div class="slider-inner">
+      <div class="icon-bubble"><i class="ti ti-flame" aria-hidden="true"></i></div>
+      <div class="slider-col">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;"><span class="answer-label" id="s3q1-lbl">1 day</span><span class="answer-num" id="s3q1-num">1 / 7</span></div>
+        <input type="range" min="1" max="7" step="1" value="1" oninput="updateDays(this,'s3q1')">
+        <div class="range-ends"><span>1 day</span><span>Every day</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="q-block">
+    <div class="q-text">Days per week you do moderate activity</div>
+    <div class="q-hint">e.g. brisk walking, yoga, light cycling</div>
+    <div class="slider-inner">
+      <div class="icon-bubble"><i class="ti ti-walk" aria-hidden="true"></i></div>
+      <div class="slider-col">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;"><span class="answer-label" id="s3q2-lbl">1 day</span><span class="answer-num" id="s3q2-num">1 / 7</span></div>
+        <input type="range" min="1" max="7" step="1" value="1" oninput="updateDays(this,'s3q2')">
+        <div class="range-ends"><span>1 day</span><span>Every day</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="q-block">
+    <div class="q-text">How would you rate your energy during physical activity?</div>
+    <div class="slider-inner" style="margin-top:10px;">
+      <div class="icon-bubble" id="s3q3-icon"><i class="ti ti-battery-1" aria-hidden="true"></i></div>
+      <div class="slider-col">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;"><span class="answer-label" id="s3q3-lbl">Very low</span><span class="answer-num" id="s3q3-num">1 / 5</span></div>
+        <input type="range" min="1" max="5" step="1" value="1" oninput="updateEnergy(this)">
+        <div class="range-ends"><span>Very low</span><span>Excellent</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="q-block">
+    <div class="q-text">Hours per day spent sitting</div>
+    <div class="q-hint">Desk work, commute, screens</div>
+    <div class="slider-inner">
+      <div class="icon-bubble"><i class="ti ti-armchair" aria-hidden="true"></i></div>
+      <div class="slider-col">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;"><span class="answer-label" id="s3q4-lbl">1 hr</span><span class="answer-num" id="s3q4-num">1 / 10</span></div>
+        <input type="range" min="1" max="10" step="1" value="1" oninput="updateSitting(this)">
+        <div class="range-ends"><span>1 hr</span><span>10+ hrs</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- STEP 4: Sleep -->
+<div class="step" id="s4">
+  <div class="step-label">Physical wellness · Sleep</div>
+  <div class="step-title">Let's talk about your sleep.</div>
+  <div class="step-sub">Quality rest is one of the most powerful levers for your wellbeing.</div>
+  <div class="q-block">
+    <div class="q-text">Average hours of sleep per night</div>
+    <div class="slider-inner" style="margin-top:10px;">
+      <div class="icon-bubble" id="s4q1-icon"><i class="ti ti-moon-off" aria-hidden="true"></i></div>
+      <div class="slider-col">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;"><span class="answer-label" id="s4q1-lbl">3 hrs or less</span><span class="answer-num" id="s4q1-num">1 / 6</span></div>
+        <input type="range" min="1" max="6" step="1" value="1" oninput="updateSleep(this)">
+        <div class="range-ends"><span>3 hrs or less</span><span>10+ hrs</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="q-block">
+    <div class="q-text">How long does it take to fall asleep?</div>
+    <div class="slider-inner" style="margin-top:10px;">
+      <div class="icon-bubble" id="s4q2-icon"><i class="ti ti-zzz" aria-hidden="true"></i></div>
+      <div class="slider-col">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;"><span class="answer-label" id="s4q2-lbl">Instantly</span><span class="answer-num" id="s4q2-num">1 / 6</span></div>
+        <input type="range" min="1" max="6" step="1" value="1" oninput="updateLatency(this)">
+        <div class="range-ends"><span>Instantly</span><span>60+ min</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="q-block">
+    <div class="q-text">How rested do you feel when you wake up?</div>
+    <div class="slider-inner" style="margin-top:10px;">
+      <div class="icon-bubble" id="s4q3-icon"><i class="ti ti-mood-sad" aria-hidden="true"></i></div>
+      <div class="slider-col">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;"><span class="answer-label" id="s4q3-lbl">Exhausted</span><span class="answer-num" id="s4q3-num">1 / 5</span></div>
+        <input type="range" min="1" max="5" step="1" value="1" oninput="updateRested(this)">
+        <div class="range-ends"><span>Exhausted</span><span>Fully refreshed</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="q-block">
+    <div class="q-text">How often do you wake during the night?</div>
+    <div class="choice-row" id="wake-choice" style="margin-top:10px;">
+      <button class="choice-btn sel" onclick="pickOne(this,'wake-choice')">Rarely</button>
+      <button class="choice-btn" onclick="pickOne(this,'wake-choice')">1–2x / week</button>
+      <button class="choice-btn" onclick="pickOne(this,'wake-choice')">3–4x / week</button>
+      <button class="choice-btn" onclick="pickOne(this,'wake-choice')">Almost nightly</button>
+    </div>
+  </div>
+</div>
+
+<!-- STEP 5: Nutrition -->
+<div class="step" id="s5">
+  <div class="step-label">Nutrition pillar</div>
+  <div class="step-title">How's your relationship with food?</div>
+  <div class="step-sub">No judgement — just an honest snapshot of your typical week.</div>
+  <div class="q-block">
+    <div class="q-text">Servings of vegetables or fruit per day</div>
+    <div class="q-hint">WHO recommends 5+ servings daily</div>
+    <div class="slider-inner">
+      <div class="icon-bubble"><i class="ti ti-leaf" aria-hidden="true"></i></div>
+      <div class="slider-col">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;"><span class="answer-label" id="s5q1-lbl">None</span><span class="answer-num" id="s5q1-num">1 / 5</span></div>
+        <input type="range" min="1" max="5" step="1" value="1" oninput="updateGeneric(this,'s5q1',['None','1–2 servings','3–4 servings','5–6 servings','7+ servings'])">
+        <div class="range-ends"><span>None</span><span>7+ servings</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="q-block">
+    <div class="q-text">Glasses of water per day</div>
+    <div class="slider-inner">
+      <div class="icon-bubble"><i class="ti ti-droplet" aria-hidden="true"></i></div>
+      <div class="slider-col">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;"><span class="answer-label" id="s5q2-lbl">0–1 glasses</span><span class="answer-num" id="s5q2-num">1 / 5</span></div>
+        <input type="range" min="1" max="5" step="1" value="1" oninput="updateGeneric(this,'s5q2',['0–1 glasses','2–3 glasses','4–5 glasses','6–7 glasses','8+ glasses'])">
+        <div class="range-ends"><span>0–1 glasses</span><span>8+ glasses</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="q-block">
+    <div class="q-text">How often do you eat processed or fast food?</div>
+    <div class="slider-inner">
+      <div class="icon-bubble"><i class="ti ti-burger" aria-hidden="true"></i></div>
+      <div class="slider-col">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;"><span class="answer-label" id="s5q3-lbl">Never</span><span class="answer-num" id="s5q3-num">1 / 5</span></div>
+        <input type="range" min="1" max="5" step="1" value="1" oninput="updateGeneric(this,'s5q3',['Never','Rarely','1–2x / week','3–4x / week','Daily'])">
+        <div class="range-ends"><span>Never</span><span>Daily</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="q-block">
+    <div class="q-text">How regular are your meal times?</div>
+    <div class="q-hint">Skipping meals can impact blood sugar and energy</div>
+    <div class="choice-row" id="meal-choice" style="margin-top:10px;">
+      <button class="choice-btn sel" onclick="pickOne(this,'meal-choice')">Skip meals often</button>
+      <button class="choice-btn" onclick="pickOne(this,'meal-choice')">Inconsistent</button>
+      <button class="choice-btn" onclick="pickOne(this,'meal-choice')">Mostly regular</button>
+      <button class="choice-btn" onclick="pickOne(this,'meal-choice')">Optimal routine</button>
+    </div>
+  </div>
+  <div class="q-block">
+    <div class="q-text">How often do you consume alcohol?</div>
+    <div class="slider-inner">
+      <div class="icon-bubble"><i class="ti ti-glass" aria-hidden="true"></i></div>
+      <div class="slider-col">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;"><span class="answer-label" id="s5q5-lbl">Never</span><span class="answer-num" id="s5q5-num">1 / 5</span></div>
+        <input type="range" min="1" max="5" step="1" value="1" oninput="updateGeneric(this,'s5q5',['Never','1–2x / month','1–2x / week','3–4x / week','Daily'])">
+        <div class="range-ends"><span>Never</span><span>Daily</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- STEP 6: Cognition -->
+<div class="step" id="s6">
+  <div class="step-label">Mental wellness · Cognition</div>
+  <div class="step-title">How's your mind been performing?</div>
+  <div class="step-sub">These questions help us understand your mental sharpness and clarity.</div>
+  <div class="q-block">
+    <div class="q-text">Ability to focus on tasks for extended periods</div>
+    <div class="q-hint">1 = cannot focus; 5 = deep, sustained concentration</div>
+    <div class="slider-inner">
+      <div class="icon-bubble" id="s6q1-icon"><i class="ti ti-target-off" aria-hidden="true"></i></div>
+      <div class="slider-col">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;"><span class="answer-label" id="s6q1-lbl">Cannot focus</span><span class="answer-num" id="s6q1-num">1 / 5</span></div>
+        <input type="range" min="1" max="5" step="1" value="1" oninput="updateFocus(this)">
+        <div class="range-ends"><span>Cannot focus</span><span>Excellent focus</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="q-block">
+    <div class="q-text">How often do you experience brain fog or mental fatigue?</div>
+    <div class="q-hint">Higher = more frequent fog (reverse-scored)</div>
+    <div class="slider-inner">
+      <div class="icon-bubble" id="s6q2-icon"><i class="ti ti-sun" aria-hidden="true"></i></div>
+      <div class="slider-col">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;"><span class="answer-label" id="s6q2-lbl">Never</span><span class="answer-num" id="s6q2-num">1 / 5</span></div>
+        <input type="range" min="1" max="5" step="1" value="1" oninput="updateFog(this)">
+        <div class="range-ends"><span>Never</span><span>Every day</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="q-block">
+    <div class="q-text">How would you rate your short-term memory?</div>
+    <div class="slider-inner">
+      <div class="icon-bubble"><i class="ti ti-database" aria-hidden="true"></i></div>
+      <div class="slider-col">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;"><span class="answer-label" id="s6q3-lbl">Very poor</span><span class="answer-num" id="s6q3-num">1 / 5</span></div>
+        <input type="range" min="1" max="5" step="1" value="1" oninput="updateGeneric(this,'s6q3',['Very poor','Poor','Average','Good','Sharp'])">
+        <div class="range-ends"><span>Very poor</span><span>Sharp</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="q-block">
+    <div class="q-text">How easily can you switch between tasks?</div>
+    <div class="slider-inner">
+      <div class="icon-bubble"><i class="ti ti-arrows-exchange" aria-hidden="true"></i></div>
+      <div class="slider-col">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;"><span class="answer-label" id="s6q4-lbl">Very difficult</span><span class="answer-num" id="s6q4-num">1 / 5</span></div>
+        <input type="range" min="1" max="5" step="1" value="1" oninput="updateGeneric(this,'s6q4',['Very difficult','Difficult','Manageable','Easy','Effortless'])">
+        <div class="range-ends"><span>Very difficult</span><span>Effortless</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- STEP 7: Symptoms -->
+<div class="step" id="s7">
+  <div class="step-label">Final check-in · Symptoms</div>
+  <div class="step-title">Any symptoms you've been noticing?</div>
+  <div class="step-sub">Select anything present in the last 4 weeks.</div>
+  <div class="q-block">
+    <div class="q-text">Physical</div>
+    <div class="choice-row" style="margin-top:10px;">
+      <button class="choice-btn" onclick="toggleMulti(this)">Headaches</button>
+      <button class="choice-btn" onclick="toggleMulti(this)">Muscle tension</button>
+      <button class="choice-btn" onclick="toggleMulti(this)">Bloating</button>
+      <button class="choice-btn" onclick="toggleMulti(this)">Low libido</button>
+      <button class="choice-btn" onclick="toggleMulti(this)">Hair loss</button>
+      <button class="choice-btn" onclick="toggleMulti(this)">Skin issues</button>
+      <button class="choice-btn" onclick="toggleMulti(this)">None</button>
+    </div>
+  </div>
+  <div class="q-block">
+    <div class="q-text">Energy & mood</div>
+    <div class="choice-row" style="margin-top:10px;">
+      <button class="choice-btn" onclick="toggleMulti(this)">Afternoon crashes</button>
+      <button class="choice-btn" onclick="toggleMulti(this)">Irritability</button>
+      <button class="choice-btn" onclick="toggleMulti(this)">Low motivation</button>
+      <button class="choice-btn" onclick="toggleMulti(this)">Anxious thoughts</button>
+      <button class="choice-btn" onclick="toggleMulti(this)">Overwhelmed</button>
+      <button class="choice-btn" onclick="toggleMulti(this)">None</button>
+    </div>
+  </div>
+  <div class="q-block">
+    <div class="q-text">Overall quality of life right now</div>
+    <div class="slider-inner" style="margin-top:10px;">
+      <div class="icon-bubble" id="s7q1-icon"><i class="ti ti-mood-sad" aria-hidden="true"></i></div>
+      <div class="slider-col">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;"><span class="answer-label" id="s7q1-lbl">Very poor</span><span class="answer-num" id="s7q1-num">1 / 5</span></div>
+        <input type="range" min="1" max="5" step="1" value="1" oninput="updateQol(this)">
+        <div class="range-ends"><span>Very poor</span><span>Thriving</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<div class="nav-row">
+  <button class="btn-back" id="back-btn" onclick="prevStep()">Back</button>
+  <button class="btn-cont" id="cont-btn" onclick="nextStep()">Continue</button>
+</div>
+</div>
+
+<script>
+let cur=1;
+const TOTAL=7;
+
+function updateUI(){
+  for(let i=1;i<=TOTAL;i++) document.getElementById('s'+i).classList.toggle('active',i===cur);
+  document.getElementById('prog').style.width=Math.round((cur/TOTAL)*100)+'%';
+  document.getElementById('step-ctr').textContent='Step '+cur+' of '+TOTAL;
+  document.getElementById('back-btn').style.visibility=cur===1?'hidden':'visible';
+  document.getElementById('cont-btn').textContent=cur===TOTAL?'See my results':'Continue';
+}
+
+function nextStep(){if(cur<TOTAL){cur++;updateUI();}}
+function prevStep(){if(cur>1){cur--;updateUI();}}
+
+const stressIcons=['ti-mood-happy','ti-mood-smile','ti-mood-neutral','ti-mood-nervous','ti-mood-sad'];
+const stressLabels=['Never','Rarely','Occasionally','Quite often','Very often'];
+function updateStress(el,id){
+  const v=parseInt(el.value);
+  document.getElementById(id+'-lbl').textContent=stressLabels[v-1];
+  document.getElementById(id+'-num').textContent=v+' / 5';
+  document.getElementById(id+'-icon').querySelector('i').className='ti '+stressIcons[v-1];
+}
+
+const dayLabels=['1 day','2 days','3 days','4 days','5 days','6 days','7 days'];
+function updateDays(el,id){
+  const v=parseInt(el.value);
+  document.getElementById(id+'-lbl').textContent=dayLabels[v-1];
+  document.getElementById(id+'-num').textContent=v+' / 7';
+}
+
+const energyIcons=['ti-battery-1','ti-battery-2','ti-battery-3','ti-battery-4','ti-bolt'];
+const energyLabels=['Very low','Low energy','Moderate','Good energy','Excellent'];
+function updateEnergy(el){
+  const v=parseInt(el.value);
+  document.getElementById('s3q3-lbl').textContent=energyLabels[v-1];
+  document.getElementById('s3q3-num').textContent=v+' / 5';
+  document.getElementById('s3q3-icon').querySelector('i').className='ti '+energyIcons[v-1];
+}
+
+const sittingLabels=['1 hr','2 hrs','3 hrs','4 hrs','5 hrs','6 hrs','7 hrs','8 hrs','9 hrs','10+ hrs'];
+function updateSitting(el){
+  const v=parseInt(el.value);
+  document.getElementById('s3q4-lbl').textContent=sittingLabels[v-1];
+  document.getElementById('s3q4-num').textContent=v+' / 10';
+}
+
+const sleepLabels=['3 hrs or less','4–5 hrs','5–6 hrs','6–7 hrs','8–9 hrs','10+ hrs'];
+const sleepIcons=['ti-moon-off','ti-moon-stars','ti-moon-stars','ti-moon','ti-moon','ti-moon'];
+function updateSleep(el){
+  const v=parseInt(el.value);
+  document.getElementById('s4q1-lbl').textContent=sleepLabels[v-1];
+  document.getElementById('s4q1-num').textContent=v+' / 6';
+  document.getElementById('s4q1-icon').querySelector('i').className='ti '+sleepIcons[v-1];
+}
+
+const latLabels=['Instantly','5–10 min','10–20 min','20–30 min','30–60 min','60+ min'];
+const latIcons=['ti-zzz','ti-zzz','ti-clock','ti-clock','ti-clock-x','ti-clock-x'];
+function updateLatency(el){
+  const v=parseInt(el.value);
+  document.getElementById('s4q2-lbl').textContent=latLabels[v-1];
+  document.getElementById('s4q2-num').textContent=v+' / 6';
+  document.getElementById('s4q2-icon').querySelector('i').className='ti '+latIcons[v-1];
+}
+
+const restedIcons=['ti-mood-sad','ti-mood-sad','ti-mood-neutral','ti-mood-smile','ti-mood-happy'];
+const restedLabels=['Exhausted','Still tired','Somewhat rested','Rested','Fully refreshed'];
+function updateRested(el){
+  const v=parseInt(el.value);
+  document.getElementById('s4q3-lbl').textContent=restedLabels[v-1];
+  document.getElementById('s4q3-num').textContent=v+' / 5';
+  document.getElementById('s4q3-icon').querySelector('i').className='ti '+restedIcons[v-1];
+}
+
+function updateGeneric(el,id,labels){
+  const v=parseInt(el.value);
+  document.getElementById(id+'-lbl').textContent=labels[v-1];
+  document.getElementById(id+'-num').textContent=v+' / '+labels.length;
+}
+
+const focusIcons=['ti-target-off','ti-target-off','ti-target','ti-target','ti-crosshair'];
+const focusLabels=['Cannot focus','Poor focus','Moderate focus','Good focus','Excellent focus'];
+function updateFocus(el){
+  const v=parseInt(el.value);
+  document.getElementById('s6q1-lbl').textContent=focusLabels[v-1];
+  document.getElementById('s6q1-num').textContent=v+' / 5';
+  document.getElementById('s6q1-icon').querySelector('i').className='ti '+focusIcons[v-1];
+}
+
+const fogIcons=['ti-sun','ti-sun','ti-cloud','ti-cloud','ti-cloud-fog'];
+const fogLabels=['Never','Rarely','Occasionally','Quite often','Every day'];
+function updateFog(el){
+  const v=parseInt(el.value);
+  document.getElementById('s6q2-lbl').textContent=fogLabels[v-1];
+  document.getElementById('s6q2-num').textContent=v+' / 5';
+  document.getElementById('s6q2-icon').querySelector('i').className='ti '+fogIcons[v-1];
+}
+
+const qolIcons=['ti-mood-sad','ti-mood-sad','ti-mood-neutral','ti-mood-smile','ti-mood-happy'];
+const qolLabels=['Very poor','Poor','Fair','Good','Thriving'];
+function updateQol(el){
+  const v=parseInt(el.value);
+  document.getElementById('s7q1-lbl').textContent=qolLabels[v-1];
+  document.getElementById('s7q1-num').textContent=v+' / 5';
+  document.getElementById('s7q1-icon').querySelector('i').className='ti '+qolIcons[v-1];
+}
+
+function pickOne(btn,groupId){
+  const g=document.getElementById(groupId)||btn.parentElement;
+  g.querySelectorAll('.choice-btn').forEach(b=>b.classList.remove('sel'));
+  btn.classList.add('sel');
+}
+
+function toggleMulti(btn){btn.classList.toggle('sel');}
+
+updateUI();
+</script>

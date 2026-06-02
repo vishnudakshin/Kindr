@@ -28,6 +28,7 @@ type TablerIcon = FC<{ size?: number; className?: string; strokeWidth?: number }
 // ── Icon + label lookup tables (mirrors kindr_questionnaire_v2.html) ──
 
 const STRESS_ICONS: TablerIcon[] = [IconMoodHappy, IconMoodSmile, IconMoodNeutral, IconMoodNervous, IconMoodSad]
+const STRESS_ICONS_POS: TablerIcon[] = [IconMoodSad, IconMoodNervous, IconMoodNeutral, IconMoodSmile, IconMoodHappy]
 const STRESS_LABELS = ['Never', 'Rarely', 'Occasionally', 'Quite often', 'Very often']
 
 const ENERGY_ICONS: TablerIcon[] = [IconBattery1, IconBattery2, IconBattery3, IconBattery4, IconBolt]
@@ -186,7 +187,7 @@ function Step2Stress({ stress, setStress }: { stress: StressResponses; setStress
       >
         <Slider min={1} max={5} value={stress.q2} onChange={v => setStress({ ...stress, q2: v })}
           leftLabel="Never" rightLabel="Very often"
-          answerLabel={STRESS_LABELS[stress.q2 - 1]} icon={dynIcon(STRESS_ICONS, stress.q2)} />
+          answerLabel={STRESS_LABELS[stress.q2 - 1]} icon={dynIcon(STRESS_ICONS_POS, stress.q2)} />
       </QBlock>
       <QBlock question="How often have you felt difficulties piling up beyond your control?">
         <Slider min={1} max={5} value={stress.q3} onChange={v => setStress({ ...stress, q3: v })}
@@ -199,7 +200,7 @@ function Step2Stress({ stress, setStress }: { stress: StressResponses; setStress
       >
         <Slider min={1} max={5} value={stress.q4} onChange={v => setStress({ ...stress, q4: v })}
           leftLabel="Never" rightLabel="Very often"
-          answerLabel={STRESS_LABELS[stress.q4 - 1]} icon={dynIcon(STRESS_ICONS, stress.q4)} />
+          answerLabel={STRESS_LABELS[stress.q4 - 1]} icon={dynIcon(STRESS_ICONS_POS, stress.q4)} />
       </QBlock>
     </>
   )

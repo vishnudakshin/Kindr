@@ -1,4 +1,8 @@
+'use client'
+
+import { useRouter } from 'next/navigation'
 import { BrandHeader } from '@/components/ui/BrandHeader'
+import { Button } from '@/components/ui/Button'
 import { mockData } from '@/lib/data'
 import type { GoalId } from '@/lib/types'
 
@@ -51,6 +55,7 @@ function ScoreBar({ value }: { value: number }) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function ProfilePage() {
+  const router = useRouter()
   const { user, currentScores } = mockData
 
   const initials = user.name
@@ -126,6 +131,9 @@ export default function ProfilePage() {
           <p className="text-[12px] text-ink-2 mt-1 leading-relaxed">
             Retake the questionnaire to track your progress and refresh your plan.
           </p>
+          <Button variant="outline" className="mt-4 w-full" onClick={() => router.push('/questionnaire')}>
+            Retake questionnaire now
+          </Button>
         </div>
 
       </div>

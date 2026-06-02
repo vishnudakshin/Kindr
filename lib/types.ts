@@ -45,13 +45,34 @@ export interface CognitionResponses {
   wordFinding: number    // 1–5 (reverse-scored: more frequent = worse)
 }
 
+export interface HistoryResponses {
+  unit: 'metric' | 'imperial'
+  heightCm: string
+  weightKg: string
+  heightFt: string
+  heightIn: string
+  weightLbs: string
+  conditions: string[]
+  conditionsOther: string
+  medications: string
+  medicationsText: string
+  allergies: string
+  allergiesText: string
+  tobacco: string
+  mentalHealth: string
+  familyHistory: string[]
+  familyHistoryOther: string
+}
+
 export interface SymptomsResponses {
   physical: string[]
   energyMood: string[]
+  otherSymptoms: string
   qol: number // 1–5
 }
 
 export interface QuestionnaireResponses {
+  history: HistoryResponses
   goals: GoalId[]
   stress: StressResponses
   activity: ActivityResponses

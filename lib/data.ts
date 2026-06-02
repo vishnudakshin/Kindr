@@ -66,6 +66,16 @@ export function saveQuestionnaire(answers: QuestionnaireResponses): void {
 }
 
 const questionnaire: QuestionnaireResponses = {
+  history: {
+    unit: 'metric',
+    heightCm: '', weightKg: '', heightFt: '', heightIn: '', weightLbs: '',
+    conditions: ['None'], conditionsOther: '',
+    medications: 'None', medicationsText: '',
+    allergies: 'None known', allergiesText: '',
+    tobacco: 'Never',
+    mentalHealth: 'No',
+    familyHistory: ['None known'], familyHistoryOther: '',
+  },
   goals: ['energy', 'sleep', 'clarity'],
   stress: { q1: 3, q2: 3, q3: 2, q4: 3 },
   activity: { vigorous: 2, moderate: 4, energy: 3, sitting: 7 },
@@ -75,6 +85,7 @@ const questionnaire: QuestionnaireResponses = {
   symptoms: {
     physical: ['Headaches'],
     energyMood: ['Afternoon crashes', 'Low motivation'],
+    otherSymptoms: '',
     qol: 3,
   },
 }

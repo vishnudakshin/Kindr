@@ -52,6 +52,27 @@ export const bloodTrends: Record<string, TrendSeries> = {
   'Morning Cortisol':     { goodDirection: 'up',   points: [{ date: 'Oct 24', value: 15   }, { date: 'Jan 25', value: 16   }, { date: 'Apr 25', value: 18   }] },
 }
 
+// ── Grove data types & mock ───────────────────────────────────────────────────
+
+export interface GroveDay {
+  date: string
+  completion: number  // 0–1
+  future?: boolean
+}
+
+function groveSeed(i: number, s = 0): number {
+  const x = Math.sin(i * 127.1 + s * 311.7) * 43758.5453
+  return x - Math.floor(x)
+}
+
+/** Standalone 90-day mock so ProgressGrove renders without live cycle data. */
+export const grove90Mock: GroveDay[] = Array.from({ length: 90 }, (_, i) => {
+  if (i >= 62) return { date: `grove-day-${i + 1}`, completion: 0, future: true }
+  if (groveSeed(i * 3 + 0) < 0.10) return { date: `grove-day-${i + 1}`, completion: 0 }
+  const completion = Math.min(1, 0.3 + groveSeed(i * 3 + 1) * 0.8)
+  return { date: `grove-day-${i + 1}`, completion }
+})
+
 export function saveBloodPanel(panel: BloodPanel): void {
   mockData.bloodPanel = panel
 }

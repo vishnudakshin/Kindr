@@ -101,6 +101,44 @@ export function scoreCognition({ focus, fog, memory, trainOfThought, wordFinding
   return clamp(Math.round((focusNorm + fogNorm + memNorm + totNorm + wfNorm) / 5))
 }
 
+// ── Grove growth stage ────────────────────────────────────────────────────────
+
+export type GrowthStage = 'none' | 'seedling' | 'sapling' | 'young' | 'mature'
+
+/** Completion thresholds — centralised, no magic numbers inline. */
+export const GROWTH_THRESHOLDS = {
+  SEEDLING: 0.001,  // > 0 and < 25 %
+  SAPLING:  0.25,
+  YOUNG:    0.50,
+  MATURE:   0.75,
+} as const
+
+/** Rendered scale factor per stage (1.0 = full-size mature tree). */
+export const STAGE_SCALE: Record<GrowthStage, number> = {
+  none:     0,
+  seedling: 0.30,
+  sapling:  0.55,
+  young:    0.75,
+  mature:   1.00,
+}
+
+/** Number of cone layers per stage. */
+export const STAGE_CONES: Record<GrowthStage, number> = {
+  none:     0,
+  seedling: 1,
+  sapling:  1,
+  young:    2,
+  mature:   3,
+}
+
+export function completionToStage(completion: number, future = false): GrowthStage {
+  if (future || completion < GROWTH_THRESHOLDS.SEEDLING) return 'none'
+  if (completion < GROWTH_THRESHOLDS.SAPLING)            return 'seedling'
+  if (completion < GROWTH_THRESHOLDS.YOUNG)              return 'sapling'
+  if (completion < GROWTH_THRESHOLDS.MATURE)             return 'young'
+  return 'mature'
+}
+
 // ─────────────────────────────────────────────
 // Compute all five dimensions + overall average
 // ─────────────────────────────────────────────

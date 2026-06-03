@@ -5,30 +5,34 @@ import { motion } from 'framer-motion'
 import { PreviousForests } from './PreviousForests'
 import type { AssessmentCycle } from '@/lib/types'
 
+// ── Color palette — matches SaplingTree.tsx exactly ───────────────────────────
+const TRUNK       = '#A07845'
+const TRUNK_LIGHT = '#C49A5A'
+const LEAF_DARK   = '#3E7832'
+const LEAF_MID    = '#5C9645'
+const LEAF_LIGHT  = '#7AB855'
+const LEAF_BRIGHT = '#90C060'
+const SOIL_SHADOW = '#C8BA82'
+const SOIL_MOUND  = '#C0A060'
+
 // ── Geometry ──────────────────────────────────────────────────────────────────
-// Smaller tiles + shorter trees → compact grove that fits neatly in the card.
-// Tile spacing: 28 × 14 px keeps trees visibly separated from each other.
+// TW=32 gives sprite bases ~18px apart — enough clearance between tree canopies.
+// Coordinates below are derived from SaplingTree's 120×152 viewBox at 0.26× scale,
+// translated so ground-level (y=144 in plan space) maps to y=0 here.
+// transform: gx = (px − 60) × 0.26,  gy = (py − 144) × 0.26
 
 const COLS = 10
 const ROWS = 9
-const TW   = 28        // isometric diamond width
-const TH   = 14        // isometric diamond height (TW/2 → classic 2:1)
-const HW   = TW / 2   // 14 – half width
-const HH   = TH / 2   // 7  – half height
+const TW   = 32
+const TH   = TW / 2   // 16
+const HW   = TW / 2   // 16
+const HH   = TH / 2   // 8
 
-// Origin: leftmost tile vertex sits at x = 0
-const OX = ROWS * HW   // 126
-// OY set so that SVG_H / SVG_W ≈ 1.15, matching the reference image's near-square proportions.
-// Tallest tree (FullTree) reaches ~42px above its sprite base; tile(0,0) base ≈ OY + 9px.
-// OY = 58 → tree top ≈ 58 + 9 − 42 = 25px from SVG top  ✓
-const OY = 58
+const OX = ROWS * HW                                        // 144
+const OY = 90                                               // headroom for tallest tree
 
-// Canvas bounds
-//   width  = (COLS + ROWS) * HW = 19 × 14 = 266
-//   height = OY + (COLS+ROWS)×HH + TH + padding
-//          = 58 + 119 + 14 + 6 = 197  → ratio 266/233 ≈ 1.14 ✓
-const SVG_W = (COLS + ROWS) * HW               // 266
-const SVG_H = OY + (COLS + ROWS) * HH + TH + 6 // 233
+const SVG_W = (COLS + ROWS) * HW                            // 304
+const SVG_H = OY + (COLS + ROWS) * HH + TH + 6             // 264  → ratio 304/264 ≈ 1.15
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -53,103 +57,111 @@ function diamondPoints(col: number, row: number): string {
   return `${x},${y} ${x + HW},${y + HH} ${x},${y + TH} ${x - HW},${y + HH}`
 }
 
-// Trunk base = 65% down the diamond so tree sits on the tile face
 function spriteBase(col: number, row: number) {
   const { x, y } = tileTopVertex(col, row)
   return { x, y: y + TH * 0.65 }
 }
 
-// ── Tree sprites — (0,0) = trunk base, y-negative = upward ───────────────────
-// Each stage is a narrow conifer with clearly separated tiers.
-// Max widths stay well within the 28px tile so trees visibly stand apart.
+// ── Tree sprites — (0,0) = trunk base / soil centre, y-negative = upward ──────
+// Each matches one of the four stages shown in /references/trees/.
 
-// Trees are narrow conifers — max width well inside the 28px tile so each tree
-// is visually isolated from its neighbours. Height grows significantly per stage
-// so all four sizes are immediately distinguishable top-to-bottom.
-
-function Sapling() {
-  // Stage 1 — tiny sprout, single dome (~13px tall, max width 10px)
+/** Stage 1 — Seedling: prominent soil mound + tiny two-leaf sprout (~11 px tall). */
+function TreeS1() {
   return (
     <g>
-      <ellipse cy={1.5} rx={4}   ry={2}   fill="#000" opacity={0.12} />
-      <rect x={-1} y={-4} width={2} height={4} rx={1} fill="#8A5830" />
-      <ellipse          cy={-7}   rx={5}   ry={3.8} fill="#4E9018" />
-      <ellipse cx={-1.5} cy={-8.5} rx={3.2} ry={2.3} fill="#70C028" opacity={0.85} />
-      <ellipse          cy={-11}  rx={2.2} ry={1.8} fill="#8ED83A" opacity={0.8} />
-      <ellipse          cy={-13}  rx={1.2} ry={1}   fill="#AAEC4A" opacity={0.7} />
+      {/* Soil mound dome */}
+      <path
+        d="M-4.2,-1 C-4.2,-4.2 -2.3,-6 0,-6 C2.3,-6 4.2,-4.2 4.2,-1 Z"
+        fill={SOIL_MOUND}
+      />
+      <ellipse cy={-1} rx={4.2} ry={1} fill="#B09050" />
+      {/* Stem */}
+      <line x1={0} y1={-6} x2={0} y2={-9.4}
+        stroke="#7A9848" strokeWidth={0.9} strokeLinecap="round" />
+      {/* Left seedling leaf */}
+      <ellipse cx={-2.1} cy={-9.4} rx={2.3} ry={1.3}
+        fill="#82B268" transform="rotate(-28 -2.1 -9.4)" />
+      {/* Right seedling leaf */}
+      <ellipse cx={2.1}  cy={-9.4} rx={2.3} ry={1.3}
+        fill="#82B268" transform="rotate(28 2.1 -9.4)" />
+      {/* Upright centre leaf */}
+      <ellipse cy={-11} rx={1.2} ry={1.8} fill="#8EC264" />
     </g>
   )
 }
 
-function SmallTree() {
-  // Stage 2 — two clearly-separated tiers (~22px tall, max width 14px)
+/** Stage 2 — Sapling: thin trunk + three broad leaves (palm silhouette, ~17 px tall). */
+function TreeS2() {
   return (
     <g>
-      <ellipse cy={1.5} rx={5.5} ry={2.5} fill="#000" opacity={0.13} />
-      <rect x={-1.5} y={-6} width={3} height={6} rx={1.5} fill="#7A4820" />
-      {/* Tier 1 */}
-      <ellipse          cy={-9}   rx={7}   ry={4.5} fill="#367018" />
-      <ellipse cx={-2}  cy={-11}  rx={4.5} ry={2.8} fill="#52A028" opacity={0.85} />
-      {/* Tier 2 — clearly narrower and separated */}
-      <ellipse          cy={-16}  rx={5}   ry={3.5} fill="#42881E" />
-      <ellipse cx={-1.5} cy={-18} rx={3.2} ry={2.2} fill="#60AE2E" opacity={0.85} />
-      {/* Tier top */}
-      <ellipse          cy={-21}  rx={3}   ry={2.2} fill="#50A024" />
-      <ellipse cx={-1}  cy={-22.5} rx={1.8} ry={1.4} fill="#76CA36" opacity={0.85} />
-      <ellipse          cy={-24.5} rx={1.2} ry={0.9} fill="#96E044" opacity={0.72} />
+      {/* Soil bump */}
+      <ellipse cy={-0.8} rx={2.3} ry={0.9} fill={SOIL_MOUND} opacity={0.5} />
+      {/* Trunk */}
+      <rect x={-0.9} y={-12.5} width={1.8} height={12.5} rx={0.9} fill={TRUNK} />
+      {/* Left broad leaf */}
+      <ellipse cx={-3.6} cy={-13.5} rx={3.9} ry={2.0}
+        fill={LEAF_LIGHT} transform="rotate(-22 -3.6 -13.5)" />
+      <ellipse cx={-4.4} cy={-14.5} rx={1.6} ry={0.8}
+        fill={LEAF_BRIGHT} opacity={0.5} transform="rotate(-22 -4.4 -14.5)" />
+      {/* Right broad leaf */}
+      <ellipse cx={3.6} cy={-13.5} rx={3.9} ry={2.0}
+        fill={LEAF_LIGHT} transform="rotate(22 3.6 -13.5)" />
+      <ellipse cx={4.4} cy={-14.5} rx={1.6} ry={0.8}
+        fill={LEAF_BRIGHT} opacity={0.5} transform="rotate(22 4.4 -14.5)" />
+      {/* Upright centre leaf */}
+      <ellipse cy={-16.2} rx={1.8} ry={3.1} fill="#8EC264" />
     </g>
   )
 }
 
-function MedTree() {
-  // Stage 3 — three clear tiers + stub branches (~32px tall, max width 17px)
+/** Stage 3 — Young tree: chunky trunk + compact round cloud canopy (~24 px tall). */
+function TreeS3() {
   return (
     <g>
-      <ellipse cy={1.5} rx={7}   ry={3.2} fill="#000" opacity={0.14} />
-      <rect x={-2} y={-9} width={4} height={9} rx={2} fill="#6B3A18" />
-      <line x1={-1.5} y1={-5.5} x2={-5.5} y2={-9.5} stroke="#4A2808" strokeWidth={1.5} strokeLinecap="round" />
-      <line x1={ 1.5} y1={-5.5} x2={ 5.5} y2={-9.5} stroke="#4A2808" strokeWidth={1.5} strokeLinecap="round" />
-      {/* Tier 1 */}
-      <ellipse          cy={-12}  rx={8.5} ry={5.2} fill="#245A0E" />
-      <ellipse cx={-2}  cy={-14}  rx={5.5} ry={3.2} fill="#3A7C1E" opacity={0.85} />
-      {/* Tier 2 */}
-      <ellipse          cy={-19.5} rx={6.2} ry={4}   fill="#2E6E18" />
-      <ellipse cx={-1.5} cy={-21.5} rx={4} ry={2.5} fill="#4A9428" opacity={0.85} />
-      {/* Tier 3 */}
-      <ellipse          cy={-26}  rx={4.5} ry={3}   fill="#38841C" />
-      <ellipse cx={-1}  cy={-27.5} rx={2.8} ry={1.8} fill="#58A82C" opacity={0.85} />
-      {/* Crown */}
-      <ellipse          cy={-30}  rx={2.8} ry={2.2} fill="#44961E" />
-      <ellipse cx={-1}  cy={-31.5} rx={1.8} ry={1.4} fill="#68BE30" opacity={0.85} />
-      <ellipse          cy={-33.5} rx={1.2} ry={0.9} fill="#88D83C" opacity={0.75} />
+      {/* Ground shadow */}
+      <ellipse cy={1.5} rx={5.0} ry={1.8} fill={SOIL_SHADOW} opacity={0.55} />
+      {/* Trunk */}
+      <rect x={-1.4} y={-12.5} width={2.8} height={12.5} rx={1.0} fill={TRUNK} />
+      <line x1={-0.4} y1={-12} x2={-0.4} y2={-1}
+        stroke={TRUNK_LIGHT} strokeWidth={0.8} strokeLinecap="round" opacity={0.45} />
+      {/* Lower canopy bulges */}
+      <circle cx={-4.2} cy={-13.8} r={3.4} fill={LEAF_MID} />
+      <circle cx={ 4.2} cy={-13.8} r={3.4} fill={LEAF_MID} />
+      {/* Central main dome */}
+      <circle cy={-15.6} r={4.9} fill={LEAF_MID} />
+      {/* Upper canopy */}
+      <circle cy={-19.8} r={3.9} fill={LEAF_LIGHT} />
+      {/* Highlights */}
+      <circle cx={-2.1} cy={-18.5} r={2.1} fill={LEAF_BRIGHT} opacity={0.52} />
+      <circle cx={ 2.1} cy={-19.0} r={1.8} fill={LEAF_BRIGHT} opacity={0.46} />
     </g>
   )
 }
 
-function FullTree() {
-  // Stage 4 — four clear tiers, full canopy (~42px tall, max width 19px)
+/** Stage 4 — Full tree: thick trunk + multi-layer canopy (plan tab stage 3 style, ~29 px tall). */
+function TreeS4() {
   return (
     <g>
-      <ellipse cy={2}   rx={9}   ry={4}   fill="#000" opacity={0.15} />
-      <rect x={-2.5} y={-11} width={5} height={11} rx={2.5} fill="#5A3010" />
-      <line x1={-2}  y1={-7}  x2={-8}  y2={-13} stroke="#3C2008" strokeWidth={2}   strokeLinecap="round" />
-      <line x1={ 2}  y1={-7}  x2={ 8}  y2={-13} stroke="#3C2008" strokeWidth={2}   strokeLinecap="round" />
-      {/* Tier 1 — base, widest */}
-      <ellipse          cy={-15}  rx={9.5} ry={5.5} fill="#1A4A08" />
-      <ellipse cx={-2.5} cy={-17.5} rx={6} ry={3.5} fill="#2C6818" opacity={0.85} />
-      {/* Tier 2 */}
-      <ellipse          cy={-22.5} rx={7.2} ry={4.5} fill="#235E12" />
-      <ellipse cx={-2}  cy={-25}  rx={4.5} ry={2.8} fill="#3A8020" opacity={0.85} />
-      {/* Tier 3 */}
-      <ellipse          cy={-29.5} rx={5.5} ry={3.5} fill="#2C7018" />
-      <ellipse cx={-1.5} cy={-31.5} rx={3.5} ry={2.2} fill="#489428" opacity={0.85} />
-      {/* Tier 4 — narrowest */}
-      <ellipse          cy={-35.5} rx={3.8} ry={2.8} fill="#368020" />
-      <ellipse cx={-1}  cy={-37.5} rx={2.4} ry={1.7} fill="#58AA30" opacity={0.85} />
-      {/* Crown */}
-      <ellipse          cy={-40}  rx={2.4} ry={1.8} fill="#42901C" />
-      <ellipse cx={-1}  cy={-41.5} rx={1.5} ry={1.2} fill="#66C030" opacity={0.85} />
-      <ellipse          cy={-43.5} rx={1}   ry={0.8} fill="#86DC3C" opacity={0.75} />
+      {/* Ground shadow */}
+      <ellipse cy={1.5} rx={7.0} ry={2.5} fill={SOIL_SHADOW} opacity={0.55} />
+      {/* Trunk */}
+      <rect x={-2.0} y={-14} width={4.0} height={14} rx={1.4} fill={TRUNK} />
+      <line x1={-0.6} y1={-13.5} x2={-0.6} y2={-1}
+        stroke={TRUNK_LIGHT} strokeWidth={0.9} strokeLinecap="round" opacity={0.38} />
+      {/* Layer 1 — outer dark base */}
+      <circle cx={-6.0} cy={-13.0} r={4.9} fill={LEAF_DARK} opacity={0.9} />
+      <circle cx={ 6.0} cy={-13.0} r={4.9} fill={LEAF_DARK} opacity={0.9} />
+      {/* Layer 2 — mid green main body */}
+      <circle cy={-16.6} r={6.5} fill={LEAF_MID} />
+      {/* Layer 3 — upper bright */}
+      <circle cx={-4.2} cy={-20.8} r={4.4} fill={LEAF_LIGHT} />
+      <circle cx={ 4.2} cy={-20.8} r={4.4} fill={LEAF_LIGHT} />
+      <circle cy={-23.9} r={4.9} fill={LEAF_LIGHT} />
+      {/* Highlights */}
+      <circle cx={-2.6} cy={-22.4} r={2.3} fill={LEAF_BRIGHT} opacity={0.52} />
+      <circle cx={ 2.6} cy={-22.9} r={2.1} fill={LEAF_BRIGHT} opacity={0.46} />
+      <circle cx={-4.7} cy={-16.6} r={1.6} fill={LEAF_BRIGHT} opacity={0.38} />
+      <circle cx={ 4.7} cy={-16.6} r={1.6} fill={LEAF_BRIGHT} opacity={0.38} />
     </g>
   )
 }
@@ -189,7 +201,7 @@ export function ForestGrove({ currentCycle, previousCycles, today }: Props) {
     }
   })
 
-  // Painter's algorithm: back-to-front (ascending col+row, then col)
+  // Painter's algorithm: back-to-front
   const paintOrder = [...entries].sort((a, b) =>
     (a.col + a.row) - (b.col + b.row) || a.col - b.col,
   )
@@ -229,47 +241,43 @@ export function ForestGrove({ currentCycle, previousCycles, today }: Props) {
             const isSelected = selected?.date === entry.date
             const grass = entry.isFuture ? '#527A22' : isSelected ? '#A8DC48' : '#78BA38'
 
-            // Stagger: back-to-front diagonal order
-            const delay = (col + row) * 0.035 + col * 0.003
+            const delay = (col + row) * 0.032 + col * 0.003
 
             return (
               <g key={entry.date}>
-                {/* Tile */}
+                {/* Ground tile */}
                 <polygon
                   points={diamondPoints(col, row)}
                   fill={grass}
-                  stroke="rgba(30,60,10,0.50)"
+                  stroke="rgba(30,60,10,0.45)"
                   strokeWidth={0.5}
                   style={{ cursor: entry.isFuture ? 'default' : 'pointer' }}
                   onClick={entry.isFuture ? undefined : e => { e.stopPropagation(); toggle(entry) }}
                 />
 
-                {/* Soil patch — visible under/without tree */}
-                {!entry.isFuture && (
+                {/* Soil patch for empty past tiles */}
+                {!entry.isFuture && stage === 0 && (
                   <ellipse
-                    cx={tx}
-                    cy={ty + TH * 0.72}
-                    rx={TW * 0.26}
-                    ry={TH * 0.26}
-                    fill={stage > 0 ? '#8E5818' : '#B86C28'}
-                    opacity={stage > 0 ? 0.38 : 0.80}
+                    cx={tx} cy={ty + TH * 0.68}
+                    rx={TW * 0.22} ry={TH * 0.22}
+                    fill="#B06820" opacity={0.72}
                     style={{ pointerEvents: 'none' }}
                   />
                 )}
 
-                {/* Upright tree — scale spring from base */}
+                {/* Tree — springs up from sprite base */}
                 {stage > 0 && (
                   <motion.g
                     initial={{ opacity: 0, scale: 0.05 }}
                     animate={{ opacity: 1, scale: 1 }}
                     style={{ transformOrigin: `${bx}px ${by}px`, pointerEvents: 'none' }}
-                    transition={{ delay, type: 'spring', stiffness: 150, damping: 18 }}
+                    transition={{ delay, type: 'spring', stiffness: 160, damping: 18 }}
                   >
                     <g transform={`translate(${bx} ${by})`}>
-                      {stage === 1 && <Sapling />}
-                      {stage === 2 && <SmallTree />}
-                      {stage === 3 && <MedTree />}
-                      {stage === 4 && <FullTree />}
+                      {stage === 1 && <TreeS1 />}
+                      {stage === 2 && <TreeS2 />}
+                      {stage === 3 && <TreeS3 />}
+                      {stage === 4 && <TreeS4 />}
                     </g>
                   </motion.g>
                 )}

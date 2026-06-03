@@ -58,7 +58,7 @@ function healthScore(tests: Record<string, BloodTestResult>): number {
 
 // ── Health dial (SVG arc) ─────────────────────────────────────────────────────
 
-function HealthDial({ pct, status }: { pct: number; status: Status }) {
+export function HealthDial({ pct, status }: { pct: number; status: Status }) {
   const r = 26, cx = 32, cy = 32
   const circ = 2 * Math.PI * r
   const filled = pct * circ

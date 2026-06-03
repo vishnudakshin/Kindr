@@ -26,6 +26,32 @@ function makeDays(startDate: string, count: number): DayEntry[] {
   return days
 }
 
+// ── Blood trend history ───────────────────────────────────────────────────────
+// Three data points: Oct 2024 → Jan 2025 → Apr 2025
+
+export interface TrendPoint { date: string; value: number }
+export interface TrendSeries { goodDirection: 'up' | 'down'; points: TrendPoint[] }
+
+export const bloodTrends: Record<string, TrendSeries> = {
+  Haemoglobin:            { goodDirection: 'up',   points: [{ date: 'Oct 24', value: 13.4 }, { date: 'Jan 25', value: 13.6 }, { date: 'Apr 25', value: 13.8 }] },
+  'White Blood Cells':    { goodDirection: 'down', points: [{ date: 'Oct 24', value: 7.1  }, { date: 'Jan 25', value: 6.8  }, { date: 'Apr 25', value: 6.2  }] },
+  'hs-CRP':               { goodDirection: 'down', points: [{ date: 'Oct 24', value: 2.8  }, { date: 'Jan 25', value: 2.4  }, { date: 'Apr 25', value: 2.1  }] },
+  Ferritin:               { goodDirection: 'up',   points: [{ date: 'Oct 24', value: 22   }, { date: 'Jan 25', value: 25   }, { date: 'Apr 25', value: 28   }] },
+  'Vitamin D (25-OH)':    { goodDirection: 'up',   points: [{ date: 'Oct 24', value: 14   }, { date: 'Jan 25', value: 19   }, { date: 'Apr 25', value: 24   }] },
+  'Vitamin B12':          { goodDirection: 'up',   points: [{ date: 'Oct 24', value: 280  }, { date: 'Jan 25', value: 295  }, { date: 'Apr 25', value: 310  }] },
+  'Fasting Glucose':      { goodDirection: 'down', points: [{ date: 'Oct 24', value: 104  }, { date: 'Jan 25', value: 100  }, { date: 'Apr 25', value: 96   }] },
+  'Fasting Insulin':      { goodDirection: 'down', points: [{ date: 'Oct 24', value: 7.8  }, { date: 'Jan 25', value: 8.5  }, { date: 'Apr 25', value: 9.2  }] },
+  'HOMA-IR2':             { goodDirection: 'down', points: [{ date: 'Oct 24', value: 1.8  }, { date: 'Jan 25', value: 2.0  }, { date: 'Apr 25', value: 2.1  }] },
+  HbA1c:                  { goodDirection: 'down', points: [{ date: 'Oct 24', value: 5.8  }, { date: 'Jan 25', value: 5.6  }, { date: 'Apr 25', value: 5.4  }] },
+  'Total Cholesterol':    { goodDirection: 'down', points: [{ date: 'Oct 24', value: 210  }, { date: 'Jan 25', value: 202  }, { date: 'Apr 25', value: 195  }] },
+  LDL:                    { goodDirection: 'down', points: [{ date: 'Oct 24', value: 125  }, { date: 'Jan 25', value: 121  }, { date: 'Apr 25', value: 118  }] },
+  HDL:                    { goodDirection: 'up',   points: [{ date: 'Oct 24', value: 48   }, { date: 'Jan 25', value: 50   }, { date: 'Apr 25', value: 52   }] },
+  Triglycerides:          { goodDirection: 'down', points: [{ date: 'Oct 24', value: 138  }, { date: 'Jan 25', value: 131  }, { date: 'Apr 25', value: 125  }] },
+  'Non-HDL':              { goodDirection: 'down', points: [{ date: 'Oct 24', value: 152  }, { date: 'Jan 25', value: 147  }, { date: 'Apr 25', value: 143  }] },
+  TSH:                    { goodDirection: 'down', points: [{ date: 'Oct 24', value: 2.4  }, { date: 'Jan 25', value: 2.2  }, { date: 'Apr 25', value: 2.1  }] },
+  'Morning Cortisol':     { goodDirection: 'up',   points: [{ date: 'Oct 24', value: 15   }, { date: 'Jan 25', value: 16   }, { date: 'Apr 25', value: 18   }] },
+}
+
 export function saveBloodPanel(panel: BloodPanel): void {
   mockData.bloodPanel = panel
 }

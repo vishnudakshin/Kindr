@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { IconChevronDown, IconUpload } from '@tabler/icons-react'
+import { IconChevronDown, IconUpload, IconLoader2, IconCheck, IconX } from '@tabler/icons-react'
 import { BrandHeader } from '@/components/ui/BrandHeader'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
@@ -16,6 +16,23 @@ function clonePanel(p: BloodPanel): BloodPanel {
       Object.fromEntries(Object.entries(tests).map(([t, r]) => [t, { ...r }])),
     ])
   )
+}
+
+function mergeExtracted(
+  panel: BloodPanel,
+  extracted: Record<string, Record<string, string>>,
+): { panel: BloodPanel; count: number } {
+  const next = clonePanel(panel)
+  let count = 0
+  for (const [group, tests] of Object.entries(extracted)) {
+    if (!next[group]) continue
+    for (const [test, value] of Object.entries(tests)) {
+      if (!next[group][test] || value === '') continue
+      next[group][test] = { ...next[group][test], value }
+      count++
+    }
+  }
+  return { panel: next, count }
 }
 
 function TestRow({
@@ -95,24 +112,56 @@ function GroupSection({
   )
 }
 
+type ScanState = 'idle' | 'scanning' | 'done' | 'error'
+
 export default function LabsPage() {
   const router = useRouter()
   const fileRef = useRef<HTMLInputElement>(null)
   const [panel, setPanel] = useState<BloodPanel>(() => clonePanel(mockData.bloodPanel))
-  const [ocrNote, setOcrNote] = useState<string | null>(null)
+  const [scanState, setScanState] = useState<ScanState>('idle')
+  const [scanCount, setScanCount] = useState(0)
+  const [scanError, setScanError] = useState<string | null>(null)
 
   function updateTest(group: string, test: string, value: string) {
     setPanel(prev => ({
       ...prev,
-      [group]: {
-        ...prev[group],
-        [test]: { ...prev[group][test], value },
-      },
+      [group]: { ...prev[group], [test]: { ...prev[group][test], value } },
     }))
   }
 
-  function handleFile(file: File) {
-    setOcrNote(`"${file.name}" received. OCR processing is coming soon — please enter values manually for now.`)
+  async function handleFile(file: File) {
+    setScanState('scanning')
+    setScanError(null)
+
+    const form = new FormData()
+    form.append('file', file)
+
+    try {
+      const res = await fetch('/api/ocr', { method: 'POST', body: form })
+      const json = await res.json()
+
+      if (!res.ok) {
+        setScanError(json.error ?? 'Something went wrong. Please try again.')
+        setScanState('error')
+        return
+      }
+
+      const { panel: merged, count } = mergeExtracted(panel, json.extracted)
+      setPanel(merged)
+      setScanCount(count)
+      setScanState('done')
+
+      // Auto-expand groups that have pre-filled values so user can review them
+      if (count > 0) {
+        const firstFilledGroup = Object.keys(json.extracted)[0]
+        // Scroll to the panel section
+        document.getElementById('panel-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        void firstFilledGroup // suppress lint warning
+      }
+    } catch {
+      setScanError('Network error. Check your connection and try again.')
+      setScanState('error')
+    }
   }
 
   function handleDrop(e: React.DragEvent) {
@@ -147,22 +196,34 @@ export default function LabsPage() {
           {' '}and add more later.
         </p>
 
-        {/* Upload stub */}
+        {/* Upload zone */}
         <div
           role="button"
           tabIndex={0}
-          onClick={() => fileRef.current?.click()}
-          onKeyDown={e => e.key === 'Enter' && fileRef.current?.click()}
+          onClick={() => scanState !== 'scanning' && fileRef.current?.click()}
+          onKeyDown={e => e.key === 'Enter' && scanState !== 'scanning' && fileRef.current?.click()}
           onDrop={handleDrop}
           onDragOver={e => e.preventDefault()}
-          className="border border-dashed border-border rounded-2xl p-6 flex flex-col items-center gap-2 mb-2 cursor-pointer hover:bg-bg-soft transition-colors text-center"
+          className={`border border-dashed rounded-2xl p-6 flex flex-col items-center gap-2 mb-3 text-center transition-colors
+            ${scanState === 'scanning'
+              ? 'border-border cursor-default opacity-70'
+              : 'border-border cursor-pointer hover:bg-bg-soft'
+            }`}
         >
           <div className="w-10 h-10 rounded-full bg-accent flex items-center justify-center mb-1">
-            <IconUpload size={18} className="text-ink" strokeWidth={1.5} />
+            {scanState === 'scanning'
+              ? <IconLoader2 size={18} className="text-ink animate-spin" strokeWidth={1.5} />
+              : <IconUpload size={18} className="text-ink" strokeWidth={1.5} />
+            }
           </div>
-          <p className="text-[13px] font-medium text-ink">Upload your lab report</p>
-          <p className="text-[11px] text-ink-2">Drag & drop or click · PDF, JPG or PNG</p>
-          <p className="text-[10px] text-ink-2 opacity-70">OCR extraction coming soon</p>
+          <p className="text-[13px] font-medium text-ink">
+            {scanState === 'scanning' ? 'Reading your report…' : 'Upload your lab report'}
+          </p>
+          <p className="text-[11px] text-ink-2">
+            {scanState === 'scanning'
+              ? 'This usually takes a few seconds'
+              : 'Drag & drop or click · PDF, JPG or PNG'}
+          </p>
           <input
             ref={fileRef}
             type="file"
@@ -172,14 +233,38 @@ export default function LabsPage() {
           />
         </div>
 
-        {ocrNote && (
-          <div className="bg-bg-soft border border-border rounded-xl px-4 py-3 mb-4">
-            <p className="text-[12px] text-ink-2">{ocrNote}</p>
+        {/* Success banner */}
+        {scanState === 'done' && (
+          <div className="flex items-start gap-3 bg-bg border border-border rounded-xl px-4 py-3 mb-4">
+            <div className="w-5 h-5 rounded-full bg-ink flex items-center justify-center shrink-0 mt-0.5">
+              <IconCheck size={12} className="text-bg" strokeWidth={2.5} />
+            </div>
+            <div className="flex-1">
+              <p className="text-[13px] font-medium text-ink">
+                {scanCount} value{scanCount !== 1 ? 's' : ''} extracted
+              </p>
+              <p className="text-[11px] text-ink-2 mt-0.5">
+                Review and edit everything below before saving — you're always in control.
+              </p>
+            </div>
+            <button onClick={() => setScanState('idle')} className="text-ink-2 hover:text-ink cursor-pointer shrink-0">
+              <IconX size={16} strokeWidth={1.5} />
+            </button>
           </div>
         )}
 
-        <p className="text-[11px] tracking-[.07em] uppercase text-ink-2 mb-3 mt-6">
-          Or enter manually
+        {/* Error banner */}
+        {scanState === 'error' && scanError && (
+          <div className="flex items-start gap-3 bg-bg border border-border rounded-xl px-4 py-3 mb-4">
+            <p className="text-[12px] text-ink-2 flex-1">{scanError}</p>
+            <button onClick={() => setScanState('idle')} className="text-ink-2 hover:text-ink cursor-pointer shrink-0">
+              <IconX size={16} strokeWidth={1.5} />
+            </button>
+          </div>
+        )}
+
+        <p id="panel-section" className="text-[11px] tracking-[.07em] uppercase text-ink-2 mb-3 mt-6">
+          {scanState === 'done' ? 'Review & edit your values' : 'Or enter manually'}
         </p>
 
         {Object.entries(panel).map(([group, tests]) => (

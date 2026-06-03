@@ -1,8 +1,8 @@
 import type { FC } from 'react'
 import { BrandHeader } from '@/components/ui/BrandHeader'
 import { ScoreTrend } from '@/components/progress/ScoreTrend'
-import { ProgressGrove } from '@/components/progress/ProgressGrove'
-import { mockData, type GroveDay } from '@/lib/data'
+import { ForestGrove } from '@/components/progress/ForestGrove'
+import { mockData } from '@/lib/data'
 import { IconCircleCheck, IconCalendarEvent, IconSparkles, IconTrophy } from '@tabler/icons-react'
 
 type IconComponent = FC<{ size?: number; strokeWidth?: number; className?: string }>
@@ -101,20 +101,11 @@ export default function ProgressPage() {
         </div>
 
         {/* 90-day grove */}
-        {(() => {
-          const groveData: GroveDay[] = Array.from({ length: 90 }, (_, i) => {
-            const date   = isoAddDays(currentCycle.startDate, i)
-            const entry  = currentCycle.days.find(e => e.date === date)
-            const future = date > today
-            const completion = future
-              ? 0
-              : entry
-                ? entry.tasksCompleted / Math.max(entry.tasksTotal, 1)
-                : 0
-            return { date, completion, future }
-          })
-          return <ProgressGrove days={groveData} />
-        })()}
+        <ForestGrove
+          currentCycle={currentCycle}
+          previousCycles={previousCycles}
+          today={today}
+        />
 
         {/* Score trend chart */}
         <ScoreTrend history={scoreHistory} />

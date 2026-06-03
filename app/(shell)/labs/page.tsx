@@ -96,15 +96,22 @@ function OverviewCard({ panel }: { panel: typeof mockData.bloodPanel }) {
       <p className="text-[11px] tracking-[.08em] uppercase mb-5" style={{ color: 'rgba(245,240,208,0.5)' }}>
         Blood biomarkers
       </p>
-      <div className="flex gap-2">
+      <div className="grid grid-cols-3 gap-x-2">
+        {/* Row 1: dot grids — tallest column sets the shared row height */}
         {cols.map(({ label, count, color }) => (
-          <div key={label} className="flex-1">
-            <DotGrid count={count} color={color} />
-            <p className="font-serif text-[34px] leading-none mb-1" style={{ color: '#F5F0D0' }}>
-              {count}
-            </p>
-            <p className="text-[11px]" style={{ color: 'rgba(245,240,208,0.55)' }}>{label}</p>
-          </div>
+          <DotGrid key={`dots-${label}`} count={count} color={color} />
+        ))}
+        {/* Row 2: numbers — always on the same baseline */}
+        {cols.map(({ label, count }) => (
+          <p key={`num-${label}`} className="font-serif text-[34px] leading-none mb-1" style={{ color: '#F5F0D0' }}>
+            {count}
+          </p>
+        ))}
+        {/* Row 3: labels */}
+        {cols.map(({ label }) => (
+          <p key={`lbl-${label}`} className="text-[11px]" style={{ color: 'rgba(245,240,208,0.55)' }}>
+            {label}
+          </p>
         ))}
       </div>
     </div>

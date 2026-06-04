@@ -363,11 +363,11 @@ export const bodySystems: BodySystem[] = [
   deriveSystem('thyroid',   'Thyroid',        ['Thyroid'],
     { x: 50,   y: 21   }, 'left'),
   deriveSystem('blood',     'Blood & Immune',  ['Complete Blood Count', 'Acute Phase Reactants'],
-    { x: 56,   y: 60   }, 'right'),
+    { x: 60,   y: 80   }, 'right'),
   deriveSystem('liver',     'Liver',           ['Liver Function'],
     { x: 44,   y: 39   }, 'left'),
   deriveSystem('vitamins',  'Vitamins',        ['Vitamins'],
-    { x: 44,   y: 60   }, 'left'),
+    { x: 40,   y: 80   }, 'left'),
   // RIGHT column — top to bottom
   deriveSystem('heart',     'Heart',           ['Lipids & Cardiac'],
     { x: 53,   y: 29   }, 'right'),

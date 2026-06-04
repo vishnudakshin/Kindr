@@ -144,15 +144,35 @@ export default function ProfilePage() {
     return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
   }
 
-  // ── Editable state ──────────────────────────────────────────────────────────
+  // ── Pre-populate from questionnaire Step 1 ──────────────────────────────────
+  const h = mockData.questionnaire.history
+
+  function initHeight(): string {
+    if (h.unit === 'metric') return h.heightCm
+    const ft = parseFloat(h.heightFt || '0'), ins = parseFloat(h.heightIn || '0')
+    return ft || ins ? String(Math.round((ft * 12 + ins) * 2.54)) : ''
+  }
+  function initWeight(): string {
+    if (h.unit === 'metric') return h.weightKg
+    return h.weightLbs ? String(Math.round(parseFloat(h.weightLbs) * 0.453592)) : ''
+  }
+  // Map questionnaire allergy category → profile pill state
+  function initAllergies(): string[] {
+    if (!h.allergies || h.allergies === 'None known') return ['None']
+    return h.allergiesText ? ['Others'] : []
+  }
+
+  // ── Editable state (initialised from questionnaire) ───────────────────────
   const [isEditing,     setIsEditing]     = useState(true)
-  const [sex,           setSex]           = useState('')
-  const [height,        setHeight]        = useState('')
-  const [weight,        setWeight]        = useState('')
-  const [diet,          setDiet]          = useState<string[]>([])
-  const [allergies,     setAllergies]     = useState<string[]>([])
-  const [allergyOther,  setAllergyOther]  = useState('')
-  const [medications,   setMedications]   = useState('')
+  const [sex,           setSex]           = useState(h.sex ?? '')
+  const [height,        setHeight]        = useState(() => initHeight())
+  const [weight,        setWeight]        = useState(() => initWeight())
+  const [diet,          setDiet]          = useState<string[]>(h.dietaryPreferences ?? [])
+  const [allergies,     setAllergies]     = useState<string[]>(() => initAllergies())
+  const [allergyOther,  setAllergyOther]  = useState(
+    h.allergies && h.allergies !== 'None known' ? (h.allergiesText ?? '') : ''
+  )
+  const [medications,   setMedications]   = useState(h.medicationsText ?? '')
   const [workoutTime,   setWorkoutTime]   = useState('')
   const [notifications, setNotifications] = useState<NotifRhythm>('daily')
 

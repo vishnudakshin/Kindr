@@ -142,6 +142,7 @@ const CONDITIONS = ['Type 2 diabetes', 'Hypertension', 'High cholesterol', 'Hypo
 const FAMILY_CONDITIONS = ['Cardiovascular disease', 'Stroke', 'Type 2 diabetes', 'Cancer', 'Thyroid disorders', 'Autoimmune conditions', 'Mental health conditions', 'Osteoporosis', 'Obesity / metabolic syndrome', 'None known']
 const MED_OPTIONS = ['None', 'Medications only', 'Supplements only', 'Both']
 const ALLERGY_OPTIONS = ['None known', 'Food allergies', 'Medication allergies', 'Environmental', 'Multiple']
+const DIET_PREF_OPTIONS = ['Omnivore','Vegetarian','Vegan','Pescatarian','Keto','Paleo','Gluten-free','Dairy-free']
 const TOBACCO_OPTIONS = ['Never', 'Former smoker', 'Occasionally', 'Daily']
 const MENTAL_OPTIONS = ['No', 'Yes, currently managed', 'Yes, in the past', 'Prefer not to say']
 
@@ -201,6 +202,15 @@ function Step1History({ history, setHistory }: { history: HistoryResponses; setH
         title="A little about your health background."
         sub="This helps us understand your starting point and tailor your plan. Everything you share stays private and is never used as a diagnosis."
       />
+
+      {/* Sex */}
+      <QBlock question="What is your biological sex?">
+        <ChoiceGroup
+          options={['Male', 'Female', 'Non-binary', 'Prefer not to say']}
+          value={history.sex}
+          onChange={v => setHistory({ ...history, sex: v })}
+        />
+      </QBlock>
 
       {/* Height & Weight */}
       <Card className="mb-3">
@@ -344,7 +354,27 @@ function Step1History({ history, setHistory }: { history: HistoryResponses; setH
         />
       </QBlock>
 
-      {/* Q4: Tobacco */}
+      {/* Q4: Dietary preferences */}
+      <QBlock question="What best describes your dietary approach?" hint="Select all that apply">
+        <div className="flex flex-wrap gap-2 mt-2.5">
+          {DIET_PREF_OPTIONS.map(opt => (
+            <button key={opt}
+              onClick={() => {
+                const cur = history.dietaryPreferences ?? []
+                const next = cur.includes(opt) ? cur.filter(d => d !== opt) : [...cur, opt]
+                setHistory({ ...history, dietaryPreferences: next })
+              }}
+              className={`border rounded-[20px] px-3 py-1.5 text-[12px] cursor-pointer transition-colors
+                ${(history.dietaryPreferences ?? []).includes(opt)
+                  ? 'bg-bg border-ink text-ink'
+                  : 'bg-card border-ink text-ink hover:bg-bg'}`}>
+              {opt}
+            </button>
+          ))}
+        </div>
+      </QBlock>
+
+      {/* Q5: Tobacco */}
       <QBlock question="Do you currently use tobacco or smoke?">
         <div className="flex flex-wrap gap-2 mt-2.5">
           {TOBACCO_OPTIONS.map(opt => (
@@ -671,7 +701,8 @@ export default function QuestionnairePage() {
   const [step, setStep] = useState(1)
 
   const [history,   setHistory]   = useState<HistoryResponses>({
-    unit: 'metric', heightCm: '', weightKg: '', heightFt: '', heightIn: '', weightLbs: '',
+    unit: 'metric', sex: '', dietaryPreferences: [],
+    heightCm: '', weightKg: '', heightFt: '', heightIn: '', weightLbs: '',
     conditions: ['None'], conditionsOther: '',
     medications: 'None', medicationsText: '',
     allergies: 'None known', allergiesText: '',
@@ -712,6 +743,11 @@ export default function QuestionnairePage() {
         {step > 1 && (
           <Button variant="outline" onClick={() => setStep(s => s - 1)}>
             Back
+          </Button>
+        )}
+        {step === 1 && (
+          <Button variant="outline" onClick={() => router.push('/dashboard')}>
+            Exit
           </Button>
         )}
         <Button

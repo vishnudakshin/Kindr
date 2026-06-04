@@ -115,6 +115,8 @@ export function saveQuestionnaire(answers: QuestionnaireResponses): void {
 const questionnaire: QuestionnaireResponses = {
   history: {
     unit: 'metric',
+    sex: '',
+    dietaryPreferences: [],
     heightCm: '', weightKg: '', heightFt: '', heightIn: '', weightLbs: '',
     conditions: ['None'], conditionsOther: '',
     medications: 'None', medicationsText: '',

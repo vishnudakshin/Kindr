@@ -46,6 +46,8 @@ export interface CognitionResponses {
 }
 
 export interface HistoryResponses {
+  sex: string
+  dietaryPreferences: string[]
   unit: 'metric' | 'imperial'
   heightCm: string
   weightKg: string

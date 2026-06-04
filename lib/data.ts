@@ -372,7 +372,7 @@ export const bodySystems: BodySystem[] = [
   deriveSystem('heart',     'Heart',           ['Lipids & Cardiac'],
     { x: 53,   y: 28   }, 'right'),
   deriveSystem('metabolic', 'Metabolic',       ['Metabolic'],
-    { x: 50,   y: 35   }, 'right'),
+    { x: 56,   y: 60   }, 'right'),
   deriveSystem('kidney',    'Kidney',          ['Kidney Function', 'Urinalysis'],
     { x: 56,   y: 43   }, 'right'),
 ]

@@ -113,10 +113,10 @@ export function WellnessReport() {
   const overall = currentScores.overall
   const overallColor = scoreColor(overall)
 
+  // All 5 dimensions, sorted weakest first
   const weakDims = (Object.entries(currentScores) as [string, number][])
     .filter(([k]) => k !== 'overall')
     .sort(([, a], [, b]) => a - b)
-    .slice(0, 3)
 
   const labIssues = bodySystems
     .filter(s => s.status !== 'optimal')

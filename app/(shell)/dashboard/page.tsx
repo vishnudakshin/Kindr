@@ -31,12 +31,9 @@ export default function DashboardPage() {
           Body systems
         </p>
         <p className="text-[13px] text-ink-2 mb-5 leading-relaxed">
-          Tap any system to see your markers in detail.
-        </p>
-        <BodyModel />
-        <p className="text-[12px] text-ink-2 mt-4 leading-relaxed">
           Head over to labs for a detailed overview of your markers.
         </p>
+        <BodyModel />
 
       </div>
     </>

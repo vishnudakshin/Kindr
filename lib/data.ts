@@ -310,3 +310,66 @@ export const mockData: AppData = {
     finalScores: currentScores,
   } satisfies AssessmentCycle,
 }
+
+// ── Body model types & data ───────────────────────────────────────────────────
+
+export type SystemStatus = 'optimal' | 'monitor' | 'action'
+
+export interface BodySystem {
+  id:             string
+  name:           string
+  status:         SystemStatus
+  markerCount:    number
+  deficientCount: number
+  anchor:         { x: number; y: number }  // % of figure box (0–100)
+  side:           'left' | 'right'
+}
+
+export const STATUS_META: Record<SystemStatus, { color: string; label: string }> = {
+  optimal: { color: '#2E7D32', label: 'Optimal' },
+  monitor: { color: '#C77D2E', label: 'Needs attention' },
+  action:  { color: '#C0392B', label: 'Action needed' },
+}
+
+function deriveSystem(
+  id:         string,
+  name:       string,
+  panelKeys:  string[],
+  anchor:     { x: number; y: number },
+  side:       'left' | 'right',
+): BodySystem {
+  const entries   = panelKeys.flatMap(k => Object.values(mockData.bloodPanel[k] ?? {}))
+  const active    = entries.filter(t => t.value !== '')
+  const deficient = active.filter(t => t.status === 'borderline' || t.status === 'abnormal')
+  const status: SystemStatus = active.some(t => t.status === 'abnormal')
+    ? 'action'
+    : active.some(t => t.status === 'borderline')
+    ? 'monitor'
+    : 'optimal'
+  return {
+    id, name, status,
+    markerCount:    active.length,
+    deficientCount: deficient.length,
+    anchor, side,
+  }
+}
+
+// Anchors are % of figure box. Use CALIBRATE=true in BodyModel to tune them.
+export const bodySystems: BodySystem[] = [
+  // LEFT column — top → bottom
+  deriveSystem('thyroid',   'Thyroid',        ['Thyroid'],
+    { x: 50, y: 19 }, 'left'),
+  deriveSystem('blood',     'Blood & Immune',  ['Complete Blood Count', 'Acute Phase Reactants'],
+    { x: 44, y: 33 }, 'left'),
+  deriveSystem('liver',     'Liver',           ['Liver Function'],
+    { x: 44, y: 46 }, 'left'),
+  deriveSystem('vitamins',  'Vitamins',        ['Vitamins'],
+    { x: 30, y: 62 }, 'left'),
+  // RIGHT column — top → bottom
+  deriveSystem('heart',     'Heart',           ['Lipids & Cardiac'],
+    { x: 54, y: 31 }, 'right'),
+  deriveSystem('metabolic', 'Metabolic',       ['Metabolic'],
+    { x: 53, y: 49 }, 'right'),
+  deriveSystem('kidney',    'Kidney',          ['Kidney Function', 'Urinalysis'],
+    { x: 57, y: 56 }, 'right'),
+]

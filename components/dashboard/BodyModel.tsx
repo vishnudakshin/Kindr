@@ -1,165 +1,349 @@
 'use client'
 
-import { useState, useMemo } from 'react'
-import { SystemCard } from './SystemCard'
-import type { SystemDef } from './SystemCard'
-import type { BloodPanel, BloodTestResult } from '@/lib/types'
+import { useRef, useState, useEffect, useCallback } from 'react'
+import { bodySystems, STATUS_META, type BodySystem, type SystemStatus } from '@/lib/data'
 
-const BG_SOFT  = '#FAF6E3'
-const BORDER   = '#D8D0A8'
-const INK      = '#2C2A1E'
-const INK2     = '#6B6650'
-const BLUE_DOT = '#5890B8'
+// ── Dev calibration helper ────────────────────────────────────────────────────
+// Set to true, hover over the figure, click to log + copy an anchor value.
+// Remove this block (and CALIBRATE usage below) before shipping.
+const CALIBRATE = false
 
-const STATUS_CLR = {
-  normal:     '#3A7028',
-  borderline: '#C07828',
-  abnormal:   '#A83028',
-  unknown:    '#6B6650',
-} as const
+// ── Layout constants ──────────────────────────────────────────────────────────
+// Image natural size is 1024×1536 (aspect ≈ 0.667). The figure div uses
+// h-[320px] sm:h-[460px] lg:h-[560px]; width = height × 0.667 (object-contain).
+const IMG_ASPECT = 1024 / 1536   // ≈ 0.667
+const CARD_W     = 148           // label card width, px
+const CARD_H     = 72            // label card height, px
+const CARD_GAP   = 18            // gap between figure edge and card column
+const DOT_R      = 5             // marker dot radius, px
 
-const STATUS_LBL = {
-  normal:     'Optimal',
-  borderline: 'Needs attention',
-  abnormal:   'Action needed',
-  unknown:    'No data',
-} as const
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
-const B_X = 122.5
-const B_Y = 32
-const B_W = 115
-const B_H = 460
-const SC  = B_W / 100
-
-function bp(bx: number, by: number): [number, number] {
-  return [Math.round(bx * SC + B_X), Math.round(by * SC + B_Y)]
+function markerLabel(sys: BodySystem): string {
+  const n = sys.markerCount
+  const d = sys.deficientCount
+  return `${n} marker${n !== 1 ? 's' : ''} · ${d === 0 ? 'all in range' : `${d} deficient`}`
 }
 
-const BOX_W = 110
-const BOX_H = 54
-const LX    = 4
-const RX    = 246
-const L_TIP = LX + BOX_W
-const R_TIP = RX
-
-interface SysConf {
-  id: string; label: string; side: 'left' | 'right'
-  panels: string[]; dot: [number, number]; boxY: number
+/** Push card y-positions down until no two overlap. */
+function deoverlap(ys: number[]): number[] {
+  const res = [...ys]
+  for (let i = 1; i < res.length; i++) {
+    const minY = res[i - 1] + CARD_H + 8
+    if (res[i] < minY) res[i] = minY
+  }
+  return res
 }
 
-const SYSTEMS: SysConf[] = [
-  { id: 'thyroid',   label: 'Thyroid',        side: 'left',  panels: ['Thyroid'],                                              dot: bp(50,  79), boxY:  40 },
-  { id: 'blood',     label: 'Blood & Immune',  side: 'left',  panels: ['Complete Blood Count', 'Acute Phase Reactants'],        dot: bp(40, 112), boxY: 140 },
-  { id: 'liver',     label: 'Liver',           side: 'left',  panels: ['Liver Function'],                                      dot: bp(63, 138), boxY: 248 },
-  { id: 'vitamins',  label: 'Vitamins',        side: 'left',  panels: ['Vitamins'],                                            dot: bp(12, 155), boxY: 335 },
-  { id: 'heart',     label: 'Heart',           side: 'right', panels: ['Lipids & Cardiac'],                                    dot: bp(44, 103), boxY: 140 },
-  { id: 'metabolic', label: 'Metabolic',       side: 'right', panels: ['Metabolic'],                                           dot: bp(52, 150), boxY: 248 },
-  { id: 'kidney',    label: 'Kidney',          side: 'right', panels: ['Kidney Function', 'Urinalysis'],                       dot: bp(59, 165), boxY: 332 },
-]
+// ── Label card ────────────────────────────────────────────────────────────────
 
-type Status = 'normal' | 'borderline' | 'abnormal' | 'unknown'
-
-function combineTests(panel: BloodPanel, keys: string[]): Record<string, BloodTestResult> {
-  const out: Record<string, BloodTestResult> = {}
-  for (const key of keys) if (panel[key]) Object.assign(out, panel[key])
-  return out
-}
-
-function systemStatus(tests: Record<string, BloodTestResult>): Status {
-  const vals = Object.values(tests).map(t => t.status).filter(Boolean) as string[]
-  if (!vals.length) return 'unknown'
-  if (vals.includes('abnormal'))   return 'abnormal'
-  if (vals.includes('borderline')) return 'borderline'
-  return 'normal'
-}
-
-function markerSummary(tests: Record<string, BloodTestResult>): string {
-  const all    = Object.values(tests).filter(t => t.value !== '')
-  const total  = all.length
-  const def    = all.filter(t => t.status === 'borderline' || t.status === 'abnormal').length
-  return `${total} marker${total !== 1 ? 's' : ''} · ${def === 0 ? 'all in range' : `${def} deficient`}`
-}
-
-function BodyFigure() {
+function LabelCard({
+  sys,
+  style,
+}: {
+  sys:   BodySystem
+  style: React.CSSProperties
+}) {
+  const meta = STATUS_META[sys.status]
   return (
-    <svg x={B_X} y={B_Y} width={B_W} height={B_H} viewBox="0 0 100 400">
-      <defs>
-        <pattern id="blueDot" x="0" y="0" width="3" height="3" patternUnits="userSpaceOnUse">
-          <circle cx="1.5" cy="1.5" r="1.08" fill={BLUE_DOT} />
-        </pattern>
-        <clipPath id="figClip">
-          <ellipse cx="50" cy="48" rx="22" ry="25" />
-          <rect x="43" y="71" width="14" height="13" rx="4" />
-          <path d="M26,84 L74,84 C80,84 84,90 84,100 L83,155 C82,165 79,172 78,183 C78,195 79,205 78,213 C78,221 72,228 65,230 L58,230 C56,232 54,234 50,234 C46,234 44,232 42,230 L35,230 C28,228 22,221 22,213 C21,205 22,195 22,183 C21,172 18,165 17,155 L16,100 C16,90 20,84 26,84 Z" />
-          <path d="M26,86 C18,86 11,93 10,108 L10,172 C10,181 16,186 22,184 L26,165 C20,160 18,150 17,140 L17,102 Z" />
-          <path d="M74,86 C82,86 89,93 90,108 L90,172 C90,181 84,186 78,184 L74,165 C80,160 82,150 83,140 L83,102 Z" />
-          <path d="M22,228 L44,228 L44,390 C44,396 39,400 33,400 C27,400 22,396 22,390 Z" />
-          <path d="M56,228 L78,228 L78,390 C78,396 73,400 67,400 C61,400 56,396 56,390 Z" />
-        </clipPath>
-      </defs>
-      <rect x="0" y="0" width="100" height="400" fill="url(#blueDot)" clipPath="url(#figClip)" />
-    </svg>
+    <div
+      className="absolute rounded-xl border pointer-events-none select-none"
+      style={{
+        width:       CARD_W,
+        height:      CARD_H,
+        background:  '#FAF6E3',
+        borderColor: '#D8D0A8',
+        boxShadow:   '0 1px 6px rgba(44,42,30,0.08)',
+        padding:     '10px 12px',
+        ...style,
+      }}
+    >
+      <p style={{ fontSize: 12, fontWeight: 700, color: '#2C2A1E', lineHeight: 1.2, marginBottom: 3 }}>
+        {sys.name}
+      </p>
+      <p style={{ fontSize: 11, color: meta.color, fontWeight: 500, lineHeight: 1.2, marginBottom: 3 }}>
+        {meta.label}
+      </p>
+      <p style={{ fontSize: 10, color: '#6B6650', lineHeight: 1.3 }}>
+        {markerLabel(sys)}
+      </p>
+    </div>
   )
 }
 
-interface BoxProps {
-  sys: SysConf; status: Status; summary: string
-  onSelect: (e: React.MouseEvent<SVGGElement>) => void
-}
+// ── Mobile system row (stacked layout) ───────────────────────────────────────
 
-function AnnBox({ sys, status, summary, onSelect }: BoxProps) {
-  const bx = sys.side === 'left' ? LX : RX
-  const by = sys.boxY
-  const tx = bx + 9
-  const clr = STATUS_CLR[status]
+function MobileRow({ sys }: { sys: BodySystem }) {
+  const meta = STATUS_META[sys.status]
   return (
-    <g onClick={onSelect} style={{ cursor: 'pointer' }}>
-      <rect x={bx} y={by} width={BOX_W} height={BOX_H} rx={8} fill={BG_SOFT} stroke={BORDER} strokeWidth={0.75} />
-      <text x={tx} y={by + 17} fontSize={11} fontWeight="600" fill={INK} fontFamily="system-ui, -apple-system, sans-serif">{sys.label}</text>
-      <text x={tx} y={by + 30} fontSize={10} fill={clr} fontFamily="system-ui, -apple-system, sans-serif">{STATUS_LBL[status]}</text>
-      <text x={tx} y={by + 43} fontSize={9} fill={INK2} fontFamily="system-ui, -apple-system, sans-serif">{summary}</text>
-    </g>
+    <div className="flex items-center gap-3 py-3 border-b border-border last:border-0">
+      <div
+        className="shrink-0 rounded-full border-2 border-white"
+        style={{ width: DOT_R * 2, height: DOT_R * 2, background: meta.color,
+                 boxShadow: '0 0 0 1px rgba(0,0,0,0.08)' }}
+      />
+      <div className="flex-1 min-w-0">
+        <p className="text-[12px] font-semibold text-ink leading-tight">{sys.name}</p>
+        <p className="text-[11px] leading-tight mt-0.5" style={{ color: meta.color }}>{meta.label}</p>
+        <p className="text-[10px] text-ink-2 mt-0.5">{markerLabel(sys)}</p>
+      </div>
+    </div>
   )
 }
 
-export function BodyModel({ bloodPanel }: { bloodPanel: BloodPanel }) {
-  const [active, setActive] = useState<SysConf | null>(null)
-  const entries = useMemo(() =>
-    SYSTEMS.map(sys => {
-      const tests   = combineTests(bloodPanel, sys.panels)
-      const status  = systemStatus(tests)
-      const summary = markerSummary(tests)
-      return { sys, tests, status, summary }
-    }),
-    [bloodPanel],
-  )
-  const activeTests = active ? combineTests(bloodPanel, active.panels) : {}
-  const activeDef: SystemDef | null = active
-    ? { id: active.id, label: active.label, side: active.side, yPct: 0, panels: active.panels }
-    : null
+// ── BodyModel ─────────────────────────────────────────────────────────────────
+
+export function BodyModel() {
+  const rootRef  = useRef<HTMLDivElement>(null)
+  const figRef   = useRef<HTMLDivElement>(null)   // the figure-size container
+
+  // Measured figure box in root-relative px
+  const [fig, setFig] = useState({ left: 0, top: 0, w: 0, h: 0 })
+  const [rootW, setRootW] = useState(0)
+
+  // Calibration state
+  const [calibXY, setCalibXY] = useState<{ x: number; y: number } | null>(null)
+
+  const measure = useCallback(() => {
+    const root = rootRef.current
+    const f    = figRef.current
+    if (!root || !f) return
+    const rr = root.getBoundingClientRect()
+    const fr = f.getBoundingClientRect()
+    setFig({
+      left: fr.left - rr.left,
+      top:  fr.top  - rr.top,
+      w:    fr.width,
+      h:    fr.height,
+    })
+    setRootW(rr.width)
+  }, [])
+
+  useEffect(() => {
+    measure()
+    const ro = new ResizeObserver(measure)
+    if (rootRef.current) ro.observe(rootRef.current)
+    return () => ro.disconnect()
+  }, [measure])
+
+  const hasFig = fig.w > 0
+
+  // Anchor → root-relative pixels
+  function px(sys: BodySystem) {
+    return {
+      x: fig.left + fig.w * (sys.anchor.x / 100),
+      y: fig.top  + fig.h * (sys.anchor.y / 100),
+    }
+  }
+
+  // Left / right system groups
+  const leftSys  = bodySystems.filter(s => s.side === 'left')
+  const rightSys = bodySystems.filter(s => s.side === 'right')
+
+  // Card top positions (de-overlapped)
+  const leftCardTops  = deoverlap(leftSys.map(s  => fig.top + fig.h * (s.anchor.y / 100) - CARD_H / 2))
+  const rightCardTops = deoverlap(rightSys.map(s => fig.top + fig.h * (s.anchor.y / 100) - CARD_H / 2))
+
+  // Connector line points (L-elbow)
+  // LEFT:  (cardRight, cardCenterY) → (cardRight, markerY) → (markerX, markerY)
+  // RIGHT: (markerX, markerY) → (cardLeft, markerY) → (cardLeft, cardCenterY)
+  const cardRightX = fig.left - CARD_GAP
+  const cardLeftX  = fig.left + fig.w + CARD_GAP
+
+  function leftLine(sys: BodySystem, cardTop: number): string {
+    const { x: mx, y: my } = px(sys)
+    const cy = cardTop + CARD_H / 2
+    return `${cardRightX},${cy} ${cardRightX},${my} ${mx},${my}`
+  }
+
+  function rightLine(sys: BodySystem, cardTop: number): string {
+    const { x: mx, y: my } = px(sys)
+    const cy = cardTop + CARD_H / 2
+    return `${mx},${my} ${cardLeftX},${my} ${cardLeftX},${cy}`
+  }
+
+  // Root container min-height = figure height or last card bottom, whichever is bigger
+  const lastLeftBottom  = leftCardTops.length  ? leftCardTops[leftCardTops.length - 1]  + CARD_H : 0
+  const lastRightBottom = rightCardTops.length ? rightCardTops[rightCardTops.length - 1] + CARD_H : 0
+  const minH = Math.max(fig.top + fig.h + 20, lastLeftBottom + 12, lastRightBottom + 12)
+
+  // Calibration mouse handler
+  function onCalibMove(e: React.MouseEvent) {
+    if (!CALIBRATE || !figRef.current) return
+    const fr = figRef.current.getBoundingClientRect()
+    const cx = ((e.clientX - fr.left) / fr.width  * 100)
+    const cy = ((e.clientY - fr.top)  / fr.height * 100)
+    setCalibXY({ x: cx, y: cy })
+  }
+
+  function onCalibClick(e: React.MouseEvent) {
+    if (!CALIBRATE || !calibXY) return
+    const txt = `{ x: ${calibXY.x.toFixed(1)}, y: ${calibXY.y.toFixed(1)} }`
+    navigator.clipboard?.writeText(txt)
+    console.log('anchor:', txt)
+  }
+
+  // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
-    <div className="relative">
-      <svg viewBox="0 0 360 510" width="100%" style={{ display: 'block' }} onClick={() => setActive(null)}>
-        <BodyFigure />
-        {entries.map(({ sys, status, summary }) => {
-          const [dx, dy] = sys.dot
-          const clr   = STATUS_CLR[status]
-          const lineX = sys.side === 'left' ? L_TIP : R_TIP
-          const lineY = sys.boxY + BOX_H / 2
+    <>
+      {/* ── Desktop / tablet layout (≥700px) ── */}
+      <div
+        ref={rootRef}
+        className="relative mx-auto max-w-[960px] hidden min-[700px]:block"
+        style={{ minHeight: minH || 580, background: 'var(--bg)' }}
+      >
+        {/* Figure image container — centered, height driven by Tailwind */}
+        <div
+          ref={figRef}
+          className="absolute left-1/2 -translate-x-1/2 top-5"
+          style={{
+            height: 'min(560px, 58vw)',
+            width:  `calc(min(560px, 58vw) * ${IMG_ASPECT})`,
+          }}
+          onMouseMove={onCalibMove}
+          onClick={onCalibClick}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/body/figure.png"
+            alt="Stippled human figure"
+            onLoad={measure}
+            style={{ width: '100%', height: '100%', display: 'block', userSelect: 'none' }}
+          />
+
+          {/* Calibration crosshair */}
+          {CALIBRATE && calibXY && (
+            <>
+              <div
+                className="pointer-events-none absolute"
+                style={{
+                  left: `${calibXY.x}%`, top: 0, bottom: 0,
+                  width: 1, background: 'red', opacity: 0.6,
+                }}
+              />
+              <div
+                className="pointer-events-none absolute"
+                style={{
+                  top: `${calibXY.y}%`, left: 0, right: 0,
+                  height: 1, background: 'red', opacity: 0.6,
+                }}
+              />
+            </>
+          )}
+        </div>
+
+        {/* SVG overlay for connector lines */}
+        {hasFig && (
+          <svg
+            className="absolute inset-0 pointer-events-none"
+            width={rootW}
+            height={minH || 580}
+            style={{ overflow: 'visible' }}
+          >
+            {leftSys.map((sys, i) => (
+              <polyline
+                key={sys.id}
+                points={leftLine(sys, leftCardTops[i])}
+                fill="none"
+                stroke={STATUS_META[sys.status].color}
+                strokeWidth={1.3}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            ))}
+            {rightSys.map((sys, i) => (
+              <polyline
+                key={sys.id}
+                points={rightLine(sys, rightCardTops[i])}
+                fill="none"
+                stroke={STATUS_META[sys.status].color}
+                strokeWidth={1.3}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            ))}
+          </svg>
+        )}
+
+        {/* Marker dots */}
+        {hasFig && bodySystems.map(sys => {
+          const { x, y } = px(sys)
           return (
-            <g key={sys.id}>
-              <line x1={lineX} y1={lineY} x2={dx} y2={dy} stroke={clr} strokeWidth={1.2} strokeLinecap="round" />
-              <circle cx={dx} cy={dy} r={5}   fill="white" opacity={0.88} />
-              <circle cx={dx} cy={dy} r={3.5} fill={clr} />
-              <AnnBox sys={sys} status={status} summary={summary} onSelect={e => { e.stopPropagation(); setActive(sys) }} />
-            </g>
+            <div
+              key={`dot-${sys.id}`}
+              className="absolute rounded-full pointer-events-none"
+              style={{
+                left:        x - DOT_R,
+                top:         y - DOT_R,
+                width:       DOT_R * 2,
+                height:      DOT_R * 2,
+                background:  STATUS_META[sys.status].color,
+                outline:     '2px solid white',
+                outlineOffset: '0px',
+                boxShadow:   '0 0 0 1px rgba(0,0,0,0.10)',
+              }}
+            />
           )
         })}
-      </svg>
-      {activeDef && (
-        <SystemCard system={activeDef} tests={activeTests} onClose={() => setActive(null)} />
-      )}
-    </div>
+
+        {/* Left label cards */}
+        {hasFig && leftSys.map((sys, i) => (
+          <LabelCard
+            key={sys.id}
+            sys={sys}
+            style={{
+              top:   leftCardTops[i],
+              right: rootW - cardRightX,
+            }}
+          />
+        ))}
+
+        {/* Right label cards */}
+        {hasFig && rightSys.map((sys, i) => (
+          <LabelCard
+            key={sys.id}
+            sys={sys}
+            style={{
+              top:  rightCardTops[i],
+              left: cardLeftX,
+            }}
+          />
+        ))}
+
+        {/* Calibration tooltip */}
+        {CALIBRATE && calibXY && (
+          <div
+            className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 rounded-lg px-3 py-2 text-xs font-mono text-white pointer-events-none"
+            style={{ background: 'rgba(0,0,0,0.75)' }}
+          >
+            x: {calibXY.x.toFixed(1)}%&nbsp;&nbsp;y: {calibXY.y.toFixed(1)}%
+            &nbsp;·&nbsp;click to copy
+          </div>
+        )}
+      </div>
+
+      {/* ── Mobile layout (<700px) ── */}
+      <div className="min-[700px]:hidden">
+        {/* Smaller figure, centered */}
+        <div className="flex justify-center mb-5">
+          <div style={{ height: 300, width: 300 * IMG_ASPECT }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/body/figure.png"
+              alt="Stippled human figure"
+              style={{ width: '100%', height: '100%', display: 'block' }}
+            />
+          </div>
+        </div>
+
+        {/* Stacked system list */}
+        <div className="bg-card rounded-2xl border border-border shadow-card px-4 py-1">
+          {bodySystems.map(sys => (
+            <MobileRow key={sys.id} sys={sys} />
+          ))}
+        </div>
+      </div>
+    </>
   )
 }

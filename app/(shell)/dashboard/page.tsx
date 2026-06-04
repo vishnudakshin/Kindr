@@ -4,7 +4,7 @@ import { BodyModel } from '@/components/dashboard/BodyModel'
 import { mockData } from '@/lib/data'
 
 export default function DashboardPage() {
-  const { user, currentScores, bloodPanel } = mockData
+  const { user, currentScores } = mockData
 
   return (
     <>
@@ -33,7 +33,7 @@ export default function DashboardPage() {
         <p className="text-[13px] text-ink-2 mb-5 leading-relaxed">
           Tap any system to see your markers in detail.
         </p>
-        <BodyModel bloodPanel={bloodPanel} />
+        <BodyModel />
 
       </div>
     </>

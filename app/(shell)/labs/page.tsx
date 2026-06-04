@@ -353,6 +353,19 @@ export default function LabsPage() {
         {Object.entries(bloodPanel).map(([name, tests]) => (
           <SystemAccordion key={name} name={name} tests={tests} />
         ))}
+
+        {/* Resubmit */}
+        <div className="mt-6 pt-6 border-t border-border">
+          <a
+            href="/labs/entry"
+            className="flex items-center justify-center w-full rounded-full bg-ink text-[#F5F0D0] font-medium text-[13px] py-3.5 hover:opacity-90 transition-opacity"
+          >
+            Update lab panel
+          </a>
+          <p className="text-[11px] text-ink-2 text-center mt-2 leading-relaxed">
+            New results? Resubmit your blood panel to refresh your scores.
+          </p>
+        </div>
       </div>
     </>
   )

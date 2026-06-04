@@ -1,6 +1,5 @@
 import { BrandHeader } from '@/components/ui/BrandHeader'
 import { PlanClient } from '@/components/plan/PlanClient'
-import { WellnessReport } from '@/components/plan/WellnessReport'
 import { mockData } from '@/lib/data'
 
 export default function PlanPage() {
@@ -8,8 +7,6 @@ export default function PlanPage() {
     <>
       <BrandHeader />
       <div className="px-6 pt-4 pb-10">
-
-        <WellnessReport />
 
         <p className="text-[11px] tracking-[.07em] uppercase text-ink-2 mb-1">Your plan</p>
         <h1 className="font-serif text-[30px] font-medium text-ink leading-snug mb-1">

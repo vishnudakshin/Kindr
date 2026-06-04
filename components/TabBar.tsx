@@ -7,6 +7,7 @@ import {
   IconTestPipe,
   IconClipboardList,
   IconChartBar,
+  IconReportSearch,
   IconBook,
   IconUser,
 } from '@tabler/icons-react'
@@ -18,6 +19,7 @@ const TABS: { href: string; label: string; Icon: TablerIcon }[] = [
   { href: '/dashboard',  label: 'Dashboard', Icon: IconLayoutDashboard },
   { href: '/labs',       label: 'Labs',      Icon: IconTestPipe        },
   { href: '/plan',       label: 'Plan',      Icon: IconClipboardList   },
+  { href: '/report',     label: 'Report',    Icon: IconReportSearch    },
   { href: '/progress',   label: 'Progress',  Icon: IconChartBar        },
   { href: '/resources',  label: 'Resources', Icon: IconBook            },
   { href: '/profile',    label: 'Profile',   Icon: IconUser            },

@@ -299,7 +299,14 @@ export const mockData: AppData = {
     id: 'cycle-2',
     startDate: '2025-01-15',
     endDate: '2025-04-15',
-    days: makeDays('2025-01-15', 90),
+    days: (() => {
+      const d = makeDays('2025-01-15', 90)
+      // 7 fully grown days scattered across the grid
+      ;[5, 13, 27, 36, 48, 57, 71].forEach(i => {
+        d[i] = { date: d[i].date, tasksCompleted: 10, tasksTotal: 10 }
+      })
+      return d
+    })(),
     finalScores: currentScores,
   } satisfies AssessmentCycle,
 }

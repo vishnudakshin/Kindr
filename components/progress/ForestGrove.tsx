@@ -23,10 +23,10 @@ const HW   = TW / 2          // 16
 const HH   = TH / 2          // 8
 
 const OX   = ROWS * HW                               // 144
-const OY   = 96                                      // headroom (Tree4 ~43 px tall)
+const OY   = 48                                      // headroom (Tree4 ~30 px at 0.65 scale)
 
 const SVG_W = (COLS + ROWS) * HW                     // 304
-const SVG_H = OY + (COLS + ROWS) * HH + TH + 6      // 270  →  304/270 ≈ 1.13
+const SVG_H = OY + (COLS + ROWS) * HH + TH + 6      // 222  →  304/222 ≈ 1.37
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -53,7 +53,7 @@ function diamondPoints(col: number, row: number): string {
 
 function spriteBase(col: number, row: number) {
   const { x, y } = tileTopVertex(col, row)
-  return { x, y: y + TH * 0.65 }
+  return { x, y: y + TH * 0.5 }
 }
 
 // ── Score → stage ─────────────────────────────────────────────────────────────
@@ -84,24 +84,24 @@ function toStage(completed: number, total: number, isFuture: boolean): number {
 function Sapling() {
   return (
     <g>
-      {/* Dome */}
-      <path d="M-5,-1 C-5,-5.5 -2.8,-7.5 0,-7.5 C2.8,-7.5 5,-5.5 5,-1 Z"
+      {/* Dome — base at cy=0 (tile center) */}
+      <path d="M-5,0 C-5,-4.5 -2.8,-6.5 0,-6.5 C2.8,-6.5 5,-4.5 5,0 Z"
         fill="#C0A060" />
-      <ellipse cy={-1} rx={5} ry={1.2} fill="#B09050" />
+      <ellipse cy={0} rx={5} ry={1.2} fill="#B09050" />
       {/* Short stem */}
-      <line x1={0} y1={-7.5} x2={0} y2={-10}
+      <line x1={0} y1={-6.5} x2={0} y2={-9}
         stroke="#7A9848" strokeWidth={1} strokeLinecap="round" />
       {/* Left leaf */}
-      <ellipse cx={-2.5} cy={-11} rx={3} ry={2.2}
-        fill="#8EC264" transform="rotate(-12 -2.5 -11)" />
+      <ellipse cx={-2.5} cy={-10} rx={3} ry={2.2}
+        fill="#8EC264" transform="rotate(-12 -2.5 -10)" />
       {/* Right leaf */}
-      <ellipse cx={ 2.5} cy={-11} rx={3} ry={2.2}
-        fill="#8EC264" transform="rotate(12 2.5 -11)" />
+      <ellipse cx={ 2.5} cy={-10} rx={3} ry={2.2}
+        fill="#8EC264" transform="rotate(12 2.5 -10)" />
       {/* Leaf highlights */}
-      <ellipse cx={-2.5} cy={-11.5} rx={1.2} ry={0.9}
-        fill="#A8D840" opacity={0.65} transform="rotate(-12 -2.5 -11.5)" />
-      <ellipse cx={ 2.5} cy={-11.5} rx={1.2} ry={0.9}
-        fill="#A8D840" opacity={0.65} transform="rotate(12 2.5 -11.5)" />
+      <ellipse cx={-2.5} cy={-10.5} rx={1.2} ry={0.9}
+        fill="#A8D840" opacity={0.65} transform="rotate(-12 -2.5 -10.5)" />
+      <ellipse cx={ 2.5} cy={-10.5} rx={1.2} ry={0.9}
+        fill="#A8D840" opacity={0.65} transform="rotate(12 2.5 -10.5)" />
     </g>
   )
 }
@@ -111,7 +111,7 @@ function Tree1() {
   return (
     <g>
       {/* Flat shadow */}
-      <ellipse cy={1.5} rx={4.5} ry={1.8} fill={SOIL_SHADOW} opacity={0.55} />
+      <ellipse cy={0} rx={4.5} ry={1.8} fill={SOIL_SHADOW} opacity={0.55} />
       {/* Thin trunk */}
       <rect x={-0.9} y={-14} width={1.8} height={14} rx={0.9} fill={TRUNK} />
       {/* Left broad leaf */}
@@ -136,7 +136,7 @@ function Tree2() {
   return (
     <g>
       {/* Shadow */}
-      <ellipse cy={1.5} rx={6} ry={2.2} fill={SOIL_SHADOW} opacity={0.55} />
+      <ellipse cy={0} rx={6} ry={2.2} fill={SOIL_SHADOW} opacity={0.55} />
       {/* Chunky trunk */}
       <rect x={-1.6} y={-13} width={3.2} height={13} rx={1.2} fill={TRUNK} />
       <line x1={-0.5} y1={-12.5} x2={-0.5} y2={-1}
@@ -160,7 +160,7 @@ function Tree3() {
   return (
     <g>
       {/* Shadow */}
-      <ellipse cy={1.5} rx={7.5} ry={2.7} fill={SOIL_SHADOW} opacity={0.55} />
+      <ellipse cy={0} rx={7.5} ry={2.7} fill={SOIL_SHADOW} opacity={0.55} />
       {/* Trunk */}
       <rect x={-2} y={-15} width={4} height={15} rx={1.4} fill={TRUNK} />
       <line x1={-0.6} y1={-14.5} x2={-0.6} y2={-1}
@@ -188,11 +188,11 @@ function Tree4() {
   return (
     <g>
       {/* Shadow */}
-      <ellipse cy={1.5} rx={10} ry={3.5} fill={SOIL_SHADOW} opacity={0.55} />
+      <ellipse cy={0} rx={10} ry={3.5} fill={SOIL_SHADOW} opacity={0.55} />
       {/* Grass tufts at trunk base */}
-      <ellipse cx={-6}  cy={-1.5} rx={2.8} ry={1.3} fill="#5A9820" opacity={0.78} />
-      <ellipse cx={ 6}  cy={-1.5} rx={2.8} ry={1.3} fill="#5A9820" opacity={0.78} />
-      <ellipse cy={-1.2}          rx={2.2} ry={1.0} fill="#4A8818" opacity={0.62} />
+      <ellipse cx={-6}  cy={0} rx={2.8} ry={1.3} fill="#5A9820" opacity={0.78} />
+      <ellipse cx={ 6}  cy={0} rx={2.8} ry={1.3} fill="#5A9820" opacity={0.78} />
+      <ellipse cy={0}          rx={2.2} ry={1.0} fill="#4A8818" opacity={0.62} />
       {/* Trunk */}
       <rect x={-3}   y={-14} width={6}   height={14} rx={2}   fill="#6B3A18" />
       <rect x={-3.8} y={-14} width={1.8} height={14} rx={1}   fill="#3A1E08" opacity={0.5} />
@@ -309,11 +309,20 @@ export function ForestGrove({ currentCycle, previousCycles, today }: Props) {
                   onClick={entry.isFuture ? undefined : e => { e.stopPropagation(); toggle(entry) }}
                 />
 
-                {/* Tree — springs from base, no standalone soil patch for empty tiles */}
+                {/* Soil ring for empty / unplanted tiles */}
+                {stage === 0 && (
+                  <g transform={`translate(${bx} ${by})`} style={{ pointerEvents: 'none' }}>
+                    <ellipse cy={0} rx={6} ry={2.2} fill="#7A5028" opacity={entry.isFuture ? 0.22 : 0.55} />
+                    <ellipse cy={0} rx={3.8} ry={1.3} fill="#4A2C10" opacity={entry.isFuture ? 0.15 : 0.42} />
+                    <ellipse cy={0} rx={2} ry={0.7} fill="#2A1408" opacity={entry.isFuture ? 0.1 : 0.30} />
+                  </g>
+                )}
+
+                {/* Tree — springs from tile center */}
                 {stage > 0 && (
                   <motion.g
                     initial={{ opacity: 0, scale: 0.05 }}
-                    animate={{ opacity: 1, scale: 1 }}
+                    animate={{ opacity: 1, scale: 0.65 }}
                     style={{ opacity: 1, transformOrigin: `${bx}px ${by}px`, pointerEvents: 'none' }}
                     transition={{ delay, type: 'spring', stiffness: 160, damping: 18 }}
                   >

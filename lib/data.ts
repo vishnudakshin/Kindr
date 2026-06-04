@@ -355,21 +355,24 @@ function deriveSystem(
 }
 
 // Anchors are % of figure box. Use CALIBRATE=true in BodyModel to tune them.
+// Anchors calibrated against the 1024x1536 clean stipple asset
+// (x/y = % of figure-box div which equals % of image since img fills the div).
+// Flip CALIBRATE=true in BodyModel to re-tune interactively.
 export const bodySystems: BodySystem[] = [
-  // LEFT column — top → bottom
+  // LEFT column — top to bottom
   deriveSystem('thyroid',   'Thyroid',        ['Thyroid'],
-    { x: 50, y: 19 }, 'left'),
+    { x: 49.9, y: 23.5 }, 'left'),
   deriveSystem('blood',     'Blood & Immune',  ['Complete Blood Count', 'Acute Phase Reactants'],
-    { x: 44, y: 33 }, 'left'),
+    { x: 47.2, y: 32.8 }, 'left'),
   deriveSystem('liver',     'Liver',           ['Liver Function'],
-    { x: 44, y: 46 }, 'left'),
+    { x: 46.7, y: 45.4 }, 'left'),
   deriveSystem('vitamins',  'Vitamins',        ['Vitamins'],
-    { x: 30, y: 62 }, 'left'),
-  // RIGHT column — top → bottom
+    { x: 33.5, y: 58.9 }, 'left'),
+  // RIGHT column — top to bottom
   deriveSystem('heart',     'Heart',           ['Lipids & Cardiac'],
-    { x: 54, y: 31 }, 'right'),
+    { x: 53.1, y: 31.9 }, 'right'),
   deriveSystem('metabolic', 'Metabolic',       ['Metabolic'],
-    { x: 53, y: 49 }, 'right'),
+    { x: 49.9, y: 50.5 }, 'right'),
   deriveSystem('kidney',    'Kidney',          ['Kidney Function', 'Urinalysis'],
-    { x: 57, y: 56 }, 'right'),
+    { x: 54.5, y: 56.4 }, 'right'),
 ]

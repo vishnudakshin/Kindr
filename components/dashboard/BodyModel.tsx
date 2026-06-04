@@ -198,8 +198,8 @@ export function BodyModel() {
           ref={figRef}
           className="absolute left-1/2 -translate-x-1/2 top-5"
           style={{
-            height: 'min(560px, 58vw)',
-            width:  `calc(min(560px, 58vw) * ${IMG_ASPECT})`,
+            height: 'min(650px, 67vw)',
+            width:  `calc(min(650px, 67vw) * ${IMG_ASPECT})`,
           }}
           onMouseMove={onCalibMove}
           onClick={onCalibClick}

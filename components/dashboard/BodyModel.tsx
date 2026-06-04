@@ -140,9 +140,10 @@ export function BodyModel() {
   const leftSys  = bodySystems.filter(s => s.side === 'left')
   const rightSys = bodySystems.filter(s => s.side === 'right')
 
-  // Card top positions (de-overlapped)
-  const leftCardTops  = deoverlap(leftSys.map(s  => fig.top + fig.h * (s.anchor.y / 100) - CARD_H / 2))
-  const rightCardTops = deoverlap(rightSys.map(s => fig.top + fig.h * (s.anchor.y / 100) - CARD_H / 2))
+  // Left cards: de-overlapped so adjacent cards don't collide.
+  // Right cards: centre y locked to marker y so horizontal lines attach flush.
+  const leftCardTops  = deoverlap(leftSys.map(s => fig.top + fig.h * (s.anchor.y / 100) - CARD_H / 2))
+  const rightCardTops = rightSys.map(s => fig.top + fig.h * (s.anchor.y / 100) - CARD_H / 2)
 
   // LEFT: diagonal from card-right-edge centre to marker (appears horizontal
   //        because cards are positioned near their anchor y).

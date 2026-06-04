@@ -144,22 +144,21 @@ export function BodyModel() {
   const leftCardTops  = deoverlap(leftSys.map(s  => fig.top + fig.h * (s.anchor.y / 100) - CARD_H / 2))
   const rightCardTops = deoverlap(rightSys.map(s => fig.top + fig.h * (s.anchor.y / 100) - CARD_H / 2))
 
-  // Connector line points (L-elbow)
-  // LEFT:  (cardRight, cardCenterY) → (cardRight, markerY) → (markerX, markerY)
-  // RIGHT: (markerX, markerY) → (cardLeft, markerY) → (cardLeft, cardCenterY)
+  // Connector lines: straight diagonal from card-edge midpoint to marker dot.
+  // Single segment — obtuse angles are fine, no right-angle constraint.
   const cardRightX = fig.left - CARD_GAP
   const cardLeftX  = fig.left + fig.w + CARD_GAP
 
   function leftLine(sys: BodySystem, cardTop: number): string {
     const { x: mx, y: my } = px(sys)
     const cy = cardTop + CARD_H / 2
-    return `${cardRightX},${cy} ${cardRightX},${my} ${mx},${my}`
+    return `${cardRightX},${cy} ${mx},${my}`
   }
 
   function rightLine(sys: BodySystem, cardTop: number): string {
     const { x: mx, y: my } = px(sys)
     const cy = cardTop + CARD_H / 2
-    return `${mx},${my} ${cardLeftX},${my} ${cardLeftX},${cy}`
+    return `${mx},${my} ${cardLeftX},${cy}`
   }
 
   // Root container min-height = figure height or last card bottom, whichever is bigger

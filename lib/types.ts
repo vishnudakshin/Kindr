@@ -149,6 +149,24 @@ export interface UserProfile {
   goals: GoalId[]
 }
 
+export type SectionId =
+  | 'wellnessScores'
+  | 'labResults'
+  | 'questionnaireAnswers'
+  | 'functionalSymptoms'
+  | 'planAdherence'
+  | 'journeySnapshot'
+
+export type RelationshipType = 'doctor' | 'coach' | 'partner' | 'family' | 'friend' | 'other'
+
+export interface ShareRecord {
+  id: string
+  date: string
+  sections: SectionId[]
+  recipientName?: string
+  relationship?: RelationshipType
+}
+
 export interface AppData {
   user: UserProfile
   questionnaire: QuestionnaireResponses
@@ -159,4 +177,5 @@ export interface AppData {
   scoreHistory: ScoreSnapshot[]
   currentCycle: AssessmentCycle
   previousCycles: AssessmentCycle[]
+  shareHistory: ShareRecord[]
 }

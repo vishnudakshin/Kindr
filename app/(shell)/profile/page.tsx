@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import { BrandHeader } from '@/components/ui/BrandHeader'
 import { Button } from '@/components/ui/Button'
 import { mockData } from '@/lib/data'
+import { ShareReportButton } from '@/components/share/ShareReportButton'
+import { ShareHistory } from '@/components/share/ShareHistory'
 import type { GoalId } from '@/lib/types'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -217,6 +219,12 @@ export default function ProfilePage() {
             ))}
           </div>
         </SectionCard>
+
+        {/* Share report */}
+        <ShareReportButton variant="primary" />
+
+        {/* Share history */}
+        <ShareHistory records={mockData.shareHistory} />
 
         {/* Reassessment */}
         <SectionCard label="Next reassessment">

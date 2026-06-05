@@ -1,4 +1,4 @@
-import type { AppData, QuestionnaireResponses, BloodPanel, DayEntry, AssessmentCycle } from './types'
+import type { AppData, QuestionnaireResponses, BloodPanel, DayEntry, AssessmentCycle, ShareRecord, SectionId, RelationshipType } from './types'
 import { computeAll } from './scoring'
 
 // ── Cycle day generator ────────────────────────────────────────────────────────
@@ -311,6 +311,24 @@ export const mockData: AppData = {
     })(),
     finalScores: currentScores,
   } satisfies AssessmentCycle,
+
+  shareHistory: [] as ShareRecord[],
+}
+
+export function saveShareRecord(
+  sections: SectionId[],
+  recipientName?: string,
+  relationship?: RelationshipType,
+): ShareRecord {
+  const record: ShareRecord = {
+    id: `share-${Date.now()}`,
+    date: new Date().toISOString().split('T')[0],
+    sections,
+    recipientName: recipientName || undefined,
+    relationship: relationship || undefined,
+  }
+  mockData.shareHistory.unshift(record)
+  return record
 }
 
 // ── Body model types & data ───────────────────────────────────────────────────

@@ -291,8 +291,9 @@ export function ForestGrove({ currentCycle, previousCycles, today }: Props) {
         >
           {paintOrder.map(entry => {
             const { col, row } = entry
-            const { x: bx, y: by } = spriteBase(col, row)
             const stage  = toStage(entry.completed, entry.total, entry.isFuture)
+            const { x: bx, y: baseBy } = spriteBase(col, row)
+            const by = stage === 5 ? baseBy + TH * 0.05 : baseBy
             const isSelected = selected?.date === entry.date
             const grass  = entry.isFuture ? '#527A22' : isSelected ? '#A8DC48' : '#78BA38'
             const delay  = (col + row) * 0.030 + col * 0.003

@@ -53,7 +53,7 @@ function diamondPoints(col: number, row: number): string {
 
 function spriteBase(col: number, row: number) {
   const { x, y } = tileTopVertex(col, row)
-  return { x, y: y + TH * 0.5 }
+  return { x, y: y + TH * 0.65 }
 }
 
 // ── Score → stage ─────────────────────────────────────────────────────────────
@@ -291,8 +291,7 @@ export function ForestGrove({ currentCycle, previousCycles, today }: Props) {
         >
           {paintOrder.map(entry => {
             const { col, row } = entry
-            const { x: bx, y: baseBy } = spriteBase(col, row)
-            const by = (col === 0 && row === 0) ? baseBy + TH * 0.15 : baseBy
+            const { x: bx, y: by } = spriteBase(col, row)
             const stage  = toStage(entry.completed, entry.total, entry.isFuture)
             const isSelected = selected?.date === entry.date
             const grass  = entry.isFuture ? '#527A22' : isSelected ? '#A8DC48' : '#78BA38'
@@ -310,14 +309,6 @@ export function ForestGrove({ currentCycle, previousCycles, today }: Props) {
                   onClick={entry.isFuture ? undefined : e => { e.stopPropagation(); toggle(entry) }}
                 />
 
-                {/* Soil ring for empty / unplanted tiles */}
-                {stage === 0 && (
-                  <g transform={`translate(${bx} ${by})`} style={{ pointerEvents: 'none' }}>
-                    <ellipse cy={0} rx={6} ry={2.2} fill="#7A5028" opacity={entry.isFuture ? 0.22 : 0.55} />
-                    <ellipse cy={0} rx={3.8} ry={1.3} fill="#4A2C10" opacity={entry.isFuture ? 0.15 : 0.42} />
-                    <ellipse cy={0} rx={2} ry={0.7} fill="#2A1408" opacity={entry.isFuture ? 0.1 : 0.30} />
-                  </g>
-                )}
 
                 {/* Tree — springs from tile center */}
                 {stage > 0 && (

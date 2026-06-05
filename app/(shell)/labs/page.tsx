@@ -7,7 +7,6 @@ import { RangeBar } from '@/components/dashboard/RangeBar'
 import { TrendSparkline } from '@/components/dashboard/TrendSparkline'
 import { HealthDial } from '@/components/dashboard/SystemCard'
 import { mockData, bloodTrends } from '@/lib/data'
-import { ShareReportButton } from '@/components/share/ShareReportButton'
 import type { BloodTestResult } from '@/lib/types'
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -355,16 +354,15 @@ export default function LabsPage() {
           <SystemAccordion key={name} name={name} tests={tests} />
         ))}
 
-        {/* Resubmit + Share */}
-        <div className="mt-6 pt-6 border-t border-border flex flex-col gap-3">
+        {/* Resubmit */}
+        <div className="mt-6 pt-6 border-t border-border">
           <a
             href="/labs/entry"
             className="flex items-center justify-center w-full rounded-full bg-ink text-[#F5F0D0] font-medium text-[13px] py-3.5 hover:opacity-90 transition-opacity"
           >
             Update lab panel
           </a>
-          <ShareReportButton variant="secondary" className="self-center" />
-          <p className="text-[11px] text-ink-2 text-center leading-relaxed">
+          <p className="text-[11px] text-ink-2 text-center mt-2 leading-relaxed">
             New results? Resubmit your blood panel to refresh your scores.
           </p>
         </div>

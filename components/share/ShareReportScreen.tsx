@@ -129,7 +129,7 @@ export function ShareReportScreen() {
         <h1 className="font-serif text-[18px] font-medium text-ink">Share my report</h1>
       </div>
 
-      <div className="px-5 pt-5 pb-32 flex flex-col gap-6 max-w-lg mx-auto">
+      <div className="px-5 pt-5 pb-10 flex flex-col gap-6 max-w-lg mx-auto">
 
         {/* Recipient fields */}
         <div className="bg-card rounded-2xl border border-border p-5 flex flex-col gap-4">
@@ -223,20 +223,18 @@ export function ShareReportScreen() {
           )}
         </div>
 
-      </div>
-
-      {/* Sticky footer */}
-      <div className="fixed bottom-0 left-0 right-0 bg-bg border-t border-border px-5 py-4">
-        <p className="text-[11px] text-ink-2 text-center mb-3 leading-relaxed">
+        {/* Consent + download */}
+        <p className="text-[11px] text-ink-2 text-center leading-relaxed px-2">
           This report contains personal health information. Share it only with people you trust.
         </p>
         <button
           onClick={handleDownload}
           disabled={isGenerating || enabledCount === 0}
-          className="w-full max-w-lg mx-auto flex items-center justify-center py-3.5 rounded-full bg-ink text-[#F5F0D0] text-[13px] font-medium transition-opacity disabled:opacity-50"
+          className="w-full flex items-center justify-center py-3.5 rounded-full bg-ink text-[#F5F0D0] text-[13px] font-medium transition-opacity disabled:opacity-50"
         >
           {isGenerating ? 'Generating PDF…' : 'Download PDF'}
         </button>
+
       </div>
     </div>
   )

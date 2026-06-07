@@ -4,14 +4,15 @@ import { S, PALETTE } from './styles'
 import type { WellnessScores } from '@/lib/types'
 
 const DIMS = [
-  { key: 'nutrition' as const, label: 'Nutrition'  },
-  { key: 'sleep'     as const, label: 'Sleep'      },
-  { key: 'activity'  as const, label: 'Activity'   },
-  { key: 'cognition' as const, label: 'Cognition'  },
-  { key: 'stress'    as const, label: 'Stress'     },
+  { key: 'nutrition'  as const, label: 'Nutrition'  },
+  { key: 'sleep'      as const, label: 'Sleep'      },
+  { key: 'activity'   as const, label: 'Activity'   },
+  { key: 'cognition'  as const, label: 'Cognition'  },
+  { key: 'stress'     as const, label: 'Stress'     },
+  { key: 'wellbeing'  as const, label: 'Wellbeing'  },
 ]
 
-// Radar geometry — 5 axes, centred at (cx, cy)
+// Radar geometry — 6 axes, centred at (cx, cy)
 const CX = 120, CY = 110, R = 88
 const angles = DIMS.map((_, i) => (Math.PI * 2 * i) / DIMS.length - Math.PI / 2)
 
@@ -117,7 +118,7 @@ export function PDFWellnessScores({ scores, prevScores, footerText }: Props) {
                 <Text
                   style={{ fontSize: 8, color: PALETTE.ink2 }}
                   // react-pdf SVG Text needs x/y as props
-                  // @ts-expect-error react-pdf SVG text
+                  // @ts-ignore react-pdf SVG text
                   x={x - 18} y={y + 3}
                 >
                   {DIMS[i].label}

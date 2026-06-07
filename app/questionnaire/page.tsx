@@ -3,12 +3,9 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
-  IconBolt, IconMoodSmile, IconBrain, IconMoon, IconSalad, IconRun, IconShieldCheck, IconSparkles,
-  IconMoodHappy, IconMoodNeutral, IconMoodNervous, IconMoodSad,
-  IconFlame, IconWalk, IconBattery1, IconBattery2, IconBattery3, IconBattery4, IconArmchair,
-  IconMoonOff, IconMoonStars, IconZzz, IconClock, IconClockX,
-  IconLeaf, IconDroplet, IconBurger, IconGlass,
-  IconTargetOff, IconTarget, IconCrosshair, IconSun, IconCloud, IconCloudFog, IconDatabase,
+  IconMoodHappy, IconMoodSmile, IconMoodNeutral, IconMoodNervous, IconMoodSad,
+  IconFlame, IconWalk, IconArmchair, IconBarbell,
+  IconBrain, IconSparkles,
 } from '@tabler/icons-react'
 import type { FC } from 'react'
 import { BrandHeader } from '@/components/ui/BrandHeader'
@@ -18,62 +15,125 @@ import { Slider } from '@/components/ui/Slider'
 import { ProgressBar } from '@/components/ui/ProgressBar'
 import { saveQuestionnaire } from '@/lib/data'
 import type {
-  GoalId, QuestionnaireResponses,
+  QuestionnaireResponses,
   HistoryResponses, StressResponses, ActivityResponses, SleepResponses,
-  NutritionResponses, CognitionResponses, SymptomsResponses,
+  NutritionResponses, CognitionResponses, WellbeingResponses, SymptomsResponses,
 } from '@/lib/types'
 
 type TablerIcon = FC<{ size?: number; className?: string; strokeWidth?: number }>
 
-// ── Icon + label lookup tables (mirrors kindr_questionnaire_v2.html) ──
+// ── Question text constants ───────────────────────────────────────────────────
 
-const STRESS_ICONS: TablerIcon[] = [IconMoodHappy, IconMoodSmile, IconMoodNeutral, IconMoodNervous, IconMoodSad]
-const STRESS_ICONS_POS: TablerIcon[] = [IconMoodSad, IconMoodNervous, IconMoodNeutral, IconMoodSmile, IconMoodHappy]
-const STRESS_LABELS = ['Never', 'Rarely', 'Occasionally', 'Quite often', 'Very often']
+const PSS10_QUESTIONS = [
+  'How often have you been upset because of something that happened unexpectedly?',
+  'How often have you felt unable to control the important things in your life?',
+  'How often have you felt nervous and stressed?',
+  'How often have you felt confident about your ability to handle your personal problems?',
+  'How often have you felt that things were going your way?',
+  'How often have you been unable to cope with all the things you had to do?',
+  'How often have you been able to control irritations in your life?',
+  'How often have you felt that you were on top of things?',
+  'How often have you been angered because of things outside of your control?',
+  'How often have you felt difficulties piling up so high that you could not overcome them?',
+]
+// indices 3,4,6,7 are positively worded (scoring.ts reverse-scores them internally)
+const PSS10_POSITIVE = new Set([3, 4, 6, 7])
+const PSS_LABELS = ['Never', 'Almost never', 'Sometimes', 'Fairly often', 'Very often']
 
-const ENERGY_ICONS: TablerIcon[] = [IconBattery1, IconBattery2, IconBattery3, IconBattery4, IconBolt]
-const ENERGY_LABELS = ['Very low', 'Low energy', 'Moderate', 'Good energy', 'Excellent']
+// PROMIS Sleep Disturbance 8a — official item wording and per-item response options.
+// Items have mixed response scales; value stored is always the disturbance score (1=least, 5=most).
 
-const SLEEP_ICONS: TablerIcon[] = [IconMoonOff, IconMoonStars, IconMoonStars, IconMoon, IconMoon, IconMoon]
-const SLEEP_LABELS = ['3 hrs or less', '4–5 hrs', '5–6 hrs', '6–7 hrs', '8–9 hrs', '10+ hrs']
+interface SleepItemDef {
+  text: string
+  options: { label: string; value: number }[]
+}
 
-const LATENCY_ICONS: TablerIcon[] = [IconZzz, IconZzz, IconClock, IconClock, IconClockX, IconClockX]
-const LATENCY_LABELS = ['Instantly', '5–10 min', '10–20 min', '20–30 min', '30–60 min', '60+ min']
-
-const RESTED_ICONS: TablerIcon[] = [IconMoodSad, IconMoodSad, IconMoodNeutral, IconMoodSmile, IconMoodHappy]
-const RESTED_LABELS = ['Exhausted', 'Still tired', 'Somewhat rested', 'Rested', 'Fully refreshed']
-
-const FOCUS_ICONS: TablerIcon[] = [IconTargetOff, IconTargetOff, IconTarget, IconTarget, IconCrosshair]
-const FOCUS_LABELS = ['Cannot focus', 'Poor focus', 'Moderate focus', 'Good focus', 'Excellent focus']
-
-const FOG_ICONS: TablerIcon[] = [IconSun, IconSun, IconCloud, IconCloud, IconCloudFog]
-const FOG_LABELS = ['Never', 'Rarely', 'Occasionally', 'Quite often', 'Every day']
-
-const QOL_ICONS: TablerIcon[] = [IconMoodSad, IconMoodSad, IconMoodNeutral, IconMoodSmile, IconMoodHappy]
-const QOL_LABELS = ['Very poor', 'Poor', 'Fair', 'Good', 'Thriving']
-
-const DAY_LABELS = ['1 day', '2 days', '3 days', '4 days', '5 days', '6 days', '7 days']
-const SITTING_LABELS = ['1 hr', '2 hrs', '3 hrs', '4 hrs', '5 hrs', '6 hrs', '7 hrs', '8 hrs', '9 hrs', '10+ hrs']
-const FRUIT_VEG_LABELS = ['None', '1–2 servings', '3–4 servings', '5–6 servings', '7+ servings']
-const WATER_LABELS = ['0–1 glasses', '2–3 glasses', '4–5 glasses', '6–7 glasses', '8+ glasses']
-const PROCESSED_LABELS = ['Never', 'Rarely', '1–2x / week', '3–4x / week', 'Daily']
-const ALCOHOL_LABELS = ['Never', '1–2x / month', '1–2x / week', '3–4x / week', 'Daily']
-const MEMORY_LABELS = ['Very poor', 'Poor', 'Average', 'Good', 'Sharp']
-const WAKING_OPTIONS = ['Rarely', '1–2x / week', '3–4x / week', 'Almost nightly']
-const MEAL_OPTIONS = ['Skip meals often', 'Inconsistent', 'Mostly regular', 'Optimal routine']
-
-const GOALS: { id: GoalId; Icon: TablerIcon; title: string; sub: string }[] = [
-  { id: 'energy',     Icon: IconBolt,        title: 'Low energy',       sub: 'Fatigue, sluggishness'    },
-  { id: 'mood',       Icon: IconMoodSmile,   title: 'Mood & emotions',  sub: 'Stress, anxiety, low mood'},
-  { id: 'clarity',    Icon: IconBrain,       title: 'Mental clarity',   sub: 'Focus, memory, brain fog' },
-  { id: 'sleep',      Icon: IconMoon,        title: 'Sleep quality',    sub: 'Trouble falling asleep'   },
-  { id: 'nutrition',  Icon: IconSalad,       title: 'Nutrition',        sub: 'Diet, digestion, weight'  },
-  { id: 'fitness',    Icon: IconRun,         title: 'Physical fitness', sub: 'Strength, endurance'      },
-  { id: 'prevention', Icon: IconShieldCheck, title: 'Prevention',       sub: 'Proactive health'         },
-  { id: 'wellbeing',  Icon: IconSparkles,    title: 'General wellbeing',sub: 'Feel my best overall'     },
+const _SLEEP_STANDARD = [
+  { label: 'Not at all',   value: 1 },
+  { label: 'A little bit', value: 2 },
+  { label: 'Somewhat',     value: 3 },
+  { label: 'Quite a bit',  value: 4 },
+  { label: 'Very much',    value: 5 },
+]
+const _SLEEP_REVERSED = [       // "Not at all" = most disturbance (5), "Very much" = least (1)
+  { label: 'Not at all',   value: 5 },
+  { label: 'A little bit', value: 4 },
+  { label: 'Somewhat',     value: 3 },
+  { label: 'Quite a bit',  value: 2 },
+  { label: 'Very much',    value: 1 },
 ]
 
-// ── Shared primitives ──
+const SLEEP_ITEM_DEFS: SleepItemDef[] = [
+  // Sleep109 — quality scale, reversed
+  { text: 'My sleep quality was',
+    options: [
+      { label: 'Very poor', value: 5 },
+      { label: 'Poor',      value: 4 },
+      { label: 'Fair',      value: 3 },
+      { label: 'Good',      value: 2 },
+      { label: 'Very good', value: 1 },
+    ] },
+  { text: 'My sleep was refreshing.',                        options: _SLEEP_REVERSED  }, // Sleep116
+  { text: 'I had a problem with my sleep.',                  options: _SLEEP_STANDARD  }, // Sleep20
+  { text: 'I had difficulty falling asleep.',                options: _SLEEP_STANDARD  }, // Sleep44
+  { text: 'My sleep was restless.',                          options: _SLEEP_STANDARD  }, // Sleep108
+  { text: 'I tried hard to get to sleep.',                   options: _SLEEP_STANDARD  }, // Sleep72
+  { text: 'I worried about not being able to fall asleep.',  options: _SLEEP_STANDARD  }, // Sleep67
+  { text: 'I was satisfied with my sleep.',                  options: _SLEEP_REVERSED  }, // Sleep115
+]
+
+const STC_ITEMS = [
+  'How often do you eat breakfast?',
+  'How often do you eat 5+ servings of fruit and vegetables per day?',
+  'How often do you eat whole grains or high-fibre foods?',
+  'How often do you eat fast food or take-away?',
+  'How often do you eat fried or high-fat foods?',
+  'How often do you drink sugary beverages (juice, soda, sports drinks)?',
+  'How often do you eat sweets, pastries, or desserts?',
+  'How often do you eat processed or packaged snacks?',
+]
+const STC_RESPONSES: [string, string, string][] = [
+  ['Daily', 'Most days', 'Rarely/never'],
+  ['Daily', 'Sometimes', 'Rarely/never'],
+  ['Daily', 'Sometimes', 'Rarely/never'],
+  ['Rarely/never', '1–2×/week', '3+ times/week'],
+  ['Rarely/never', 'Sometimes', 'Often/daily'],
+  ['Rarely/never', 'Sometimes', 'Daily'],
+  ['Rarely/never', 'Sometimes', 'Daily'],
+  ['Rarely/never', 'Sometimes', 'Daily'],
+]
+
+const AUDITC_QUESTIONS = [
+  'How often do you have a drink containing alcohol?',
+  'How many standard drinks do you have on a typical day when you are drinking?',
+  'How often do you have 6 or more drinks on one occasion?',
+]
+const AUDITC_RESPONSES = [
+  ['Never', 'Monthly or less', '2–4×/month', '2–3×/week', '4+×/week'],
+  ['1–2', '3–4', '5–6', '7–9', '10+'],
+  ['Never', 'Less than monthly', 'Monthly', 'Weekly', 'Daily or almost daily'],
+]
+
+// PROMIS Cognitive Function Abilities 4a — official item wording (v2.0, Jan 2020).
+// All items: Not at all(1) → Very much(5); higher = better function.
+const COG_ITEMS = [
+  'My mind has been as sharp as usual.',
+  'My memory has been as good as usual.',
+  'My thinking has been as fast as usual.',
+  'I have been able to keep track of what I am doing, even if I am interrupted.',
+]
+const COG_LABELS = ['', 'Not at all', 'A little bit', 'Somewhat', 'Quite a bit', 'Very much']
+
+const WHO5_ITEMS = [
+  'I have felt cheerful and in good spirits.',
+  'I have felt calm and relaxed.',
+  'I have felt active and vigorous.',
+  'I woke up feeling fresh and rested.',
+  'My daily life has been filled with things that interest me.',
+]
+const WHO5_LABELS = ['At no time', 'Some of the time', 'Less than half the time', 'More than half the time', 'Most of the time', 'All of the time']
+
+// ── Shared primitives ─────────────────────────────────────────────────────────
 
 function StepHeader({ category, title, sub }: { category: string; title: string; sub: string }) {
   return (
@@ -129,14 +189,15 @@ function MultiGroup({ options, selected, onToggle }: { options: string[]; select
   )
 }
 
-function dynIcon(icons: TablerIcon[], value: number) {
-  const I = icons[value - 1]
+function pssIcon(v: number, positive: boolean): React.ReactNode {
+  const icons: TablerIcon[] = positive
+    ? [IconMoodSad, IconMoodNervous, IconMoodNeutral, IconMoodSmile, IconMoodHappy]
+    : [IconMoodHappy, IconMoodSmile, IconMoodNeutral, IconMoodNervous, IconMoodSad]
+  const I = icons[v] ?? IconMoodNeutral
   return <I size={20} className="text-ink" strokeWidth={1.5} />
 }
 
-// ── Step components ──
-
-// ── Step 1: Personal & Family History ────────────────────────────────────────
+// ── Step 1: History ──────────────────────────────────────────────────────────
 
 const CONDITIONS = ['Type 2 diabetes', 'Hypertension', 'High cholesterol', 'Hypothyroidism', 'Hyperthyroidism', 'PCOS', 'Autoimmune condition', 'Asthma', 'IBS / IBD', 'Heart disease', 'None']
 const FAMILY_CONDITIONS = ['Cardiovascular disease', 'Stroke', 'Type 2 diabetes', 'Cancer', 'Thyroid disorders', 'Autoimmune conditions', 'Mental health conditions', 'Osteoporosis', 'Obesity / metabolic syndrome', 'None known']
@@ -146,7 +207,7 @@ const DIET_PREF_OPTIONS = ['Omnivore','Vegetarian','Vegan','Pescatarian','Keto',
 const TOBACCO_OPTIONS = ['Never', 'Former smoker', 'Occasionally', 'Daily']
 const MENTAL_OPTIONS = ['No', 'Yes, currently managed', 'Yes, in the past', 'Prefer not to say']
 
-function calcBMI(h: { unit: 'metric' | 'imperial'; heightCm: string; weightKg: string; heightFt: string; heightIn: string; weightLbs: string }): number | null {
+function calcBMI(h: HistoryResponses): number | null {
   let hm: number, wk: number
   if (h.unit === 'metric') {
     const hcm = parseFloat(h.heightCm); const wkg = parseFloat(h.weightKg)
@@ -164,14 +225,69 @@ function calcBMI(h: { unit: 'metric' | 'imperial'; heightCm: string; weightKg: s
 
 function bmiCategory(bmi: number): string {
   if (bmi < 18.5) return 'Underweight'
-  if (bmi < 25)   return 'Healthy weight'
-  if (bmi < 30)   return 'Overweight'
-  if (bmi < 35)   return 'Obese — Class I'
-  if (bmi < 40)   return 'Obese — Class II'
-  return 'Obese — Class III'
+  if (bmi < 23)   return 'Healthy weight'
+  if (bmi < 25)   return 'Overweight'
+  return 'Obese'
 }
 
 function bmiToPct(bmi: number) { return Math.round(((Math.min(Math.max(bmi, 14), 42) - 14) / 28) * 100) }
+
+function WaistBlock({ history, setHistory }: { history: HistoryResponses; setHistory: (h: HistoryResponses) => void }) {
+  const [inches, setInches] = useState('')
+
+  function handleInchChange(val: string) {
+    setInches(val)
+    const n = parseFloat(val)
+    if (!isNaN(n) && n > 0) {
+      setHistory({ ...history, waistCm: String(Math.round(n * 2.54)) })
+    }
+  }
+
+  function handleCmChange(val: string) {
+    setHistory({ ...history, waistCm: val })
+    const n = parseFloat(val)
+    if (!isNaN(n) && n > 0) {
+      setInches(String(Math.round((n / 2.54) * 10) / 10))
+    } else {
+      setInches('')
+    }
+  }
+
+  return (
+    <QBlock question="Waist circumference" hint="Measure at the level of your navel — used to calculate your waist-to-height ratio.">
+      <div className="flex items-end gap-4 mt-1">
+        <div className="flex flex-col gap-1.5">
+          <span className="text-[11px] uppercase tracking-[.05em] text-ink-2">Centimetres</span>
+          <div className="flex items-center gap-1.5">
+            <input
+              type="number" placeholder="e.g. 85" min={40} max={200}
+              value={history.waistCm}
+              onChange={e => handleCmChange(e.target.value)}
+              className="border border-border rounded-[10px] px-3 py-2.5 text-[18px] font-medium text-ink bg-card w-28 outline-none focus:border-ink transition-colors"
+            />
+            <span className="text-[13px] text-ink-2">cm</span>
+          </div>
+        </div>
+        <div className="flex items-center pb-3 text-[12px] text-ink-2 select-none">or</div>
+        <div className="flex flex-col gap-1.5">
+          <span className="text-[11px] uppercase tracking-[.05em] text-ink-2">Inches</span>
+          <div className="flex items-center gap-1.5">
+            <input
+              type="number" placeholder="e.g. 33" min={15} max={80}
+              value={inches}
+              onChange={e => handleInchChange(e.target.value)}
+              className="border border-border rounded-[10px] px-3 py-2.5 text-[18px] font-medium text-ink bg-card w-28 outline-none focus:border-ink transition-colors"
+            />
+            <span className="text-[13px] text-ink-2">in</span>
+          </div>
+        </div>
+      </div>
+      {history.waistCm && inches && (
+        <p className="text-[11px] text-ink-2 mt-2">{history.waistCm} cm = {inches} in</p>
+      )}
+    </QBlock>
+  )
+}
 
 function Step1History({ history, setHistory }: { history: HistoryResponses; setHistory: (h: HistoryResponses) => void }) {
   const bmi = calcBMI(history)
@@ -203,10 +319,21 @@ function Step1History({ history, setHistory }: { history: HistoryResponses; setH
         sub="This helps us understand your starting point and tailor your plan. Everything you share stays private and is never used as a diagnosis."
       />
 
+      {/* Age */}
+      <QBlock question="How old are you?">
+        <input
+          type="number" placeholder="e.g. 35" min={16} max={120}
+          value={history.age ?? ''}
+          onChange={e => setHistory({ ...history, age: e.target.value ? parseInt(e.target.value, 10) : null })}
+          className="border border-border rounded-[10px] px-3 py-2.5 text-[18px] font-medium text-ink bg-card w-32 outline-none focus:border-ink transition-colors"
+        />
+        <span className="ml-2 text-[13px] text-ink-2">years</span>
+      </QBlock>
+
       {/* Sex */}
       <QBlock question="What is your biological sex?">
         <ChoiceGroup
-          options={['Male', 'Female', 'Non-binary', 'Prefer not to say']}
+          options={['Male', 'Female', 'Intersex', 'Prefer not to answer']}
           value={history.sex}
           onChange={v => setHistory({ ...history, sex: v })}
         />
@@ -288,16 +415,14 @@ function Step1History({ history, setHistory }: { history: HistoryResponses; setH
               <div className="h-2 rounded-full w-full" style={{ background: 'linear-gradient(to right,#7FB3D3 0%,#8BC4A8 25%,#D4C56A 50%,#E8A86B 70%,#E07070 85%,#C55A5A 100%)' }} />
               <div className="absolute top-[-4px] w-4 h-4 rounded-full bg-ink border-2 border-bg -translate-x-1/2 transition-all" style={{ left: `${bmiToPct(bmi)}%` }} />
             </div>
-            <div className="flex justify-between mt-1.5">
-              {['Underweight\n<18.5', 'Normal\n18.5–24.9', 'Overweight\n25–29.9', 'Obese\n30+'].map(l => (
-                <span key={l} className="text-[9px] text-ink-2 text-center whitespace-pre-line">{l}</span>
-              ))}
-            </div>
           </div>
         )}
       </Card>
 
-      {/* Q1: Medical conditions */}
+      {/* Waist circumference */}
+      <WaistBlock history={history} setHistory={setHistory} />
+
+      {/* Medical conditions */}
       <QBlock question="Do you have any currently diagnosed medical conditions?" hint="Select all that apply">
         <div className="flex flex-wrap gap-2 mt-2.5">
           {CONDITIONS.map(opt => (
@@ -311,12 +436,12 @@ function Step1History({ history, setHistory }: { history: HistoryResponses; setH
         <textarea
           value={history.conditionsOther}
           onChange={e => setHistory({ ...history, conditionsOther: e.target.value })}
-          placeholder="Any other conditions not listed above — feel free to describe here…"
+          placeholder="Any other conditions not listed above…"
           className="w-full mt-3 border border-border rounded-[10px] px-3 py-2.5 text-[13px] text-ink bg-card placeholder:text-ink-2/50 outline-none focus:border-ink resize-none min-h-[52px] transition-colors"
         />
       </QBlock>
 
-      {/* Q2: Medications */}
+      {/* Medications */}
       <QBlock question="Are you currently taking any medications or supplements?">
         <div className="flex flex-wrap gap-2 mt-2.5">
           {MED_OPTIONS.map(opt => (
@@ -330,13 +455,13 @@ function Step1History({ history, setHistory }: { history: HistoryResponses; setH
         <textarea
           value={history.medicationsText}
           onChange={e => setHistory({ ...history, medicationsText: e.target.value })}
-          placeholder="List any medications or supplements here — e.g. metformin, vitamin D, omega-3…"
+          placeholder="List any medications or supplements here…"
           className="w-full mt-3 border border-border rounded-[10px] px-3 py-2.5 text-[13px] text-ink bg-card placeholder:text-ink-2/50 outline-none focus:border-ink resize-none min-h-[52px] transition-colors"
         />
       </QBlock>
 
-      {/* Q3: Allergies */}
-      <QBlock question="Do you have any known allergies?" hint="Food, medication, environmental or other">
+      {/* Allergies */}
+      <QBlock question="Do you have any known allergies?">
         <div className="flex flex-wrap gap-2 mt-2.5">
           {ALLERGY_OPTIONS.map(opt => (
             <button key={opt} onClick={() => setHistory({ ...history, allergies: opt })}
@@ -354,7 +479,7 @@ function Step1History({ history, setHistory }: { history: HistoryResponses; setH
         />
       </QBlock>
 
-      {/* Q4: Dietary preferences */}
+      {/* Dietary preferences */}
       <QBlock question="What best describes your dietary approach?" hint="Select all that apply">
         <div className="flex flex-wrap gap-2 mt-2.5">
           {DIET_PREF_OPTIONS.map(opt => (
@@ -374,7 +499,7 @@ function Step1History({ history, setHistory }: { history: HistoryResponses; setH
         </div>
       </QBlock>
 
-      {/* Q5: Tobacco */}
+      {/* Tobacco */}
       <QBlock question="Do you currently use tobacco or smoke?">
         <div className="flex flex-wrap gap-2 mt-2.5">
           {TOBACCO_OPTIONS.map(opt => (
@@ -387,7 +512,7 @@ function Step1History({ history, setHistory }: { history: HistoryResponses; setH
         </div>
       </QBlock>
 
-      {/* Q5: Mental health */}
+      {/* Mental health */}
       <QBlock question="Have you ever been diagnosed with or treated for a mental health condition?">
         <div className="flex flex-wrap gap-2 mt-2.5">
           {MENTAL_OPTIONS.map(opt => (
@@ -400,8 +525,8 @@ function Step1History({ history, setHistory }: { history: HistoryResponses; setH
         </div>
       </QBlock>
 
-      {/* Q6: Family history */}
-      <QBlock question="Does anyone in your immediate family (parents or siblings) have a history of any of the following?" hint="Select all that apply">
+      {/* Family history */}
+      <QBlock question="Does anyone in your immediate family have a history of any of the following?" hint="Select all that apply">
         <div className="flex flex-wrap gap-2 mt-2.5">
           {FAMILY_CONDITIONS.map(opt => (
             <button key={opt} onClick={() => toggleFamily(opt)}
@@ -414,7 +539,7 @@ function Step1History({ history, setHistory }: { history: HistoryResponses; setH
         <textarea
           value={history.familyHistoryOther}
           onChange={e => setHistory({ ...history, familyHistoryOther: e.target.value })}
-          placeholder="Any additional family history details — condition, which relative, age of onset if known…"
+          placeholder="Any additional family history details…"
           className="w-full mt-3 border border-border rounded-[10px] px-3 py-2.5 text-[13px] text-ink bg-card placeholder:text-ink-2/50 outline-none focus:border-ink resize-none min-h-[52px] transition-colors"
         />
       </QBlock>
@@ -422,223 +547,236 @@ function Step1History({ history, setHistory }: { history: HistoryResponses; setH
   )
 }
 
-function Step2Goals({ goals, setGoals }: { goals: GoalId[]; setGoals: (g: GoalId[]) => void }) {
-  function toggle(id: GoalId) {
-    setGoals(goals.includes(id) ? goals.filter(g => g !== id) : [...goals, id])
+// ── Step 2: Stress (PSS-10) ────────────────────────────────────────────────────
+
+function Step2Stress({ stress, setStress }: { stress: StressResponses; setStress: (s: StressResponses) => void }) {
+  function setItem(i: number, v: number) {
+    setStress({ items: stress.items.map((x, j) => j === i ? v : x) })
   }
   return (
     <>
       <StepHeader
-        category="Getting started"
-        title="What brought you here today?"
-        sub="Select everything that resonates — there are no wrong answers."
-      />
-      <div className="grid grid-cols-2 gap-2">
-        {GOALS.map(({ id, Icon, title, sub }) => {
-          const sel = goals.includes(id)
-          return (
-            <button
-              key={id}
-              onClick={() => toggle(id)}
-              className={`text-left border rounded-xl p-4 cursor-pointer transition-colors
-                ${sel ? 'bg-bg border-ink' : 'bg-card border-ink hover:bg-bg'}`}
-            >
-              <Icon size={18} className="text-ink-2 mb-1.5" strokeWidth={1.5} />
-              <p className="text-[13px] font-medium text-ink">{title}</p>
-              <p className="text-[11px] text-ink-2 mt-0.5">{sub}</p>
-            </button>
-          )
-        })}
-      </div>
-    </>
-  )
-}
-
-function Step3Stress({ stress, setStress }: { stress: StressResponses; setStress: (s: StressResponses) => void }) {
-  return (
-    <>
-      <StepHeader
-        category="Mental wellness · Stress"
+        category="Mental wellness · Stress (PSS-10)"
         title="How has stress been showing up lately?"
-        sub="Think about the past month and select the option that feels most true."
+        sub="Think about the past month. Select how often each statement has applied to you. Scores 0 = Never to 4 = Very often."
       />
-      <QBlock question="How often have you felt unable to control important things in your life?">
-        <Slider min={1} max={5} value={stress.q1} onChange={v => setStress({ ...stress, q1: v })}
-          leftLabel="Never" rightLabel="Very often"
-          answerLabel={STRESS_LABELS[stress.q1 - 1]} icon={dynIcon(STRESS_ICONS, stress.q1)} />
-      </QBlock>
-      <QBlock
-        question="How often have you felt confident handling personal problems?"
-        hint="Positively-worded — higher score reflects stronger resilience"
-      >
-        <Slider min={1} max={5} value={stress.q2} onChange={v => setStress({ ...stress, q2: v })}
-          leftLabel="Never" rightLabel="Very often"
-          answerLabel={STRESS_LABELS[stress.q2 - 1]} icon={dynIcon(STRESS_ICONS_POS, stress.q2)} />
-      </QBlock>
-      <QBlock question="How often have you felt difficulties piling up beyond your control?">
-        <Slider min={1} max={5} value={stress.q3} onChange={v => setStress({ ...stress, q3: v })}
-          leftLabel="Never" rightLabel="Very often"
-          answerLabel={STRESS_LABELS[stress.q3 - 1]} icon={dynIcon(STRESS_ICONS, stress.q3)} />
-      </QBlock>
-      <QBlock
-        question="How often have you felt things were going your way?"
-        hint="Positively-worded — higher score means better mood and flow"
-      >
-        <Slider min={1} max={5} value={stress.q4} onChange={v => setStress({ ...stress, q4: v })}
-          leftLabel="Never" rightLabel="Very often"
-          answerLabel={STRESS_LABELS[stress.q4 - 1]} icon={dynIcon(STRESS_ICONS_POS, stress.q4)} />
-      </QBlock>
+      {PSS10_QUESTIONS.map((q, i) => (
+        <QBlock key={i} question={q} hint={PSS10_POSITIVE.has(i) ? 'Positively worded — higher = more resilience' : undefined}>
+          <Slider
+            min={0} max={4} value={stress.items[i]}
+            onChange={v => setItem(i, v)}
+            leftLabel="Never" rightLabel="Very often"
+            answerLabel={PSS_LABELS[stress.items[i]]}
+            icon={pssIcon(stress.items[i], PSS10_POSITIVE.has(i))}
+          />
+        </QBlock>
+      ))}
     </>
   )
 }
 
-function Step4Activity({ activity, setActivity }: { activity: ActivityResponses; setActivity: (a: ActivityResponses) => void }) {
+// ── Step 3: Activity (EVS) ─────────────────────────────────────────────────────
+
+function Step3Activity({ activity, setActivity }: { activity: ActivityResponses; setActivity: (a: ActivityResponses) => void }) {
   return (
     <>
       <StepHeader
-        category="Physical wellness · Activity"
+        category="Physical wellness · Activity (IPAQ-SF)"
         title="How does your body move through the week?"
-        sub="Think about a typical week over the past month."
+        sub="Think about a typical week over the past month. WHO recommends 150+ min/week of moderate-to-vigorous activity."
       />
-      <QBlock question="Days per week you do vigorous activity" hint="e.g. running, HIIT, cycling fast">
-        <Slider min={1} max={7} value={activity.vigorous} onChange={v => setActivity({ ...activity, vigorous: v })}
-          leftLabel="1 day" rightLabel="Every day"
-          answerLabel={DAY_LABELS[activity.vigorous - 1]} icon={<IconFlame size={20} className="text-ink" strokeWidth={1.5} />} />
+      <QBlock question="Days per week you do moderate-to-vigorous exercise" hint="Brisk walking, cycling, swimming, running, gym, sport, etc.">
+        <Slider
+          min={0} max={7} value={activity.mvpaDays}
+          onChange={v => setActivity({ ...activity, mvpaDays: v })}
+          leftLabel="0 days" rightLabel="Every day"
+          answerLabel={activity.mvpaDays === 0 ? 'None' : activity.mvpaDays === 1 ? '1 day' : `${activity.mvpaDays} days`}
+          icon={<IconFlame size={20} className="text-ink" strokeWidth={1.5} />}
+        />
       </QBlock>
-      <QBlock question="Days per week you do moderate activity" hint="e.g. brisk walking, yoga, light cycling">
-        <Slider min={1} max={7} value={activity.moderate} onChange={v => setActivity({ ...activity, moderate: v })}
-          leftLabel="1 day" rightLabel="Every day"
-          answerLabel={DAY_LABELS[activity.moderate - 1]} icon={<IconWalk size={20} className="text-ink" strokeWidth={1.5} />} />
+      <QBlock question="Minutes per session on those days" hint="How long is a typical session?">
+        <Slider
+          min={0} max={90} value={Math.min(activity.mvpaMinutes, 90)}
+          onChange={v => setActivity({ ...activity, mvpaMinutes: v })}
+          leftLabel="0 min" rightLabel="90+ min"
+          answerLabel={activity.mvpaMinutes === 0 ? 'None' : `${activity.mvpaMinutes} min`}
+          icon={<IconWalk size={20} className="text-ink" strokeWidth={1.5} />}
+        />
+        {activity.mvpaMinutes === 90 && (
+          <p className="text-[11px] text-ink-2 mt-1">If you do more than 90 min, enter 90.</p>
+        )}
       </QBlock>
-      <QBlock question="How would you rate your energy during physical activity?">
-        <Slider min={1} max={5} value={activity.energy} onChange={v => setActivity({ ...activity, energy: v })}
-          leftLabel="Very low" rightLabel="Excellent"
-          answerLabel={ENERGY_LABELS[activity.energy - 1]} icon={dynIcon(ENERGY_ICONS, activity.energy)} />
+      <QBlock question="Days per week you do muscle-strengthening activity" hint="Weights, resistance bands, bodyweight exercises (push-ups, squats, etc.)">
+        <Slider
+          min={0} max={7} value={activity.strengthDays}
+          onChange={v => setActivity({ ...activity, strengthDays: v })}
+          leftLabel="0 days" rightLabel="Every day"
+          answerLabel={activity.strengthDays === 0 ? 'None' : activity.strengthDays === 1 ? '1 day' : `${activity.strengthDays} days`}
+          icon={<IconBarbell size={20} className="text-ink" strokeWidth={1.5} />}
+        />
       </QBlock>
-      <QBlock question="Hours per day spent sitting" hint="Desk work, commute, screens">
-        <Slider min={1} max={10} value={activity.sitting} onChange={v => setActivity({ ...activity, sitting: v })}
-          leftLabel="1 hr" rightLabel="10+ hrs"
-          answerLabel={SITTING_LABELS[activity.sitting - 1]} icon={<IconArmchair size={20} className="text-ink" strokeWidth={1.5} />} />
-      </QBlock>
-    </>
-  )
-}
-
-function Step5Sleep({ sleep, setSleep }: { sleep: SleepResponses; setSleep: (s: SleepResponses) => void }) {
-  const wakingStr = WAKING_OPTIONS[sleep.waking]
-  return (
-    <>
-      <StepHeader
-        category="Physical wellness · Sleep"
-        title="Let's talk about your sleep."
-        sub="Quality rest is one of the most powerful levers for your wellbeing."
-      />
-      <QBlock question="Average hours of sleep per night">
-        <Slider min={1} max={6} value={sleep.duration} onChange={v => setSleep({ ...sleep, duration: v })}
-          leftLabel="3 hrs or less" rightLabel="10+ hrs"
-          answerLabel={SLEEP_LABELS[sleep.duration - 1]} icon={dynIcon(SLEEP_ICONS, sleep.duration)} />
-      </QBlock>
-      <QBlock question="How long does it take to fall asleep?">
-        <Slider min={1} max={6} value={sleep.latency} onChange={v => setSleep({ ...sleep, latency: v })}
-          leftLabel="Instantly" rightLabel="60+ min"
-          answerLabel={LATENCY_LABELS[sleep.latency - 1]} icon={dynIcon(LATENCY_ICONS, sleep.latency)} />
-      </QBlock>
-      <QBlock question="How rested do you feel when you wake up?">
-        <Slider min={1} max={5} value={sleep.restedness} onChange={v => setSleep({ ...sleep, restedness: v })}
-          leftLabel="Exhausted" rightLabel="Fully refreshed"
-          answerLabel={RESTED_LABELS[sleep.restedness - 1]} icon={dynIcon(RESTED_ICONS, sleep.restedness)} />
-      </QBlock>
-      <QBlock question="How often do you wake during the night?">
-        <ChoiceGroup
-          options={WAKING_OPTIONS}
-          value={wakingStr}
-          onChange={v => setSleep({ ...sleep, waking: WAKING_OPTIONS.indexOf(v) as 0 | 1 | 2 | 3 })}
+      <QBlock question="Hours per day spent sitting" hint="Desk work, commute, TV, screens — total sedentary time">
+        <Slider
+          min={0} max={16} value={activity.sittingHours}
+          onChange={v => setActivity({ ...activity, sittingHours: v })}
+          leftLabel="0 hrs" rightLabel="16 hrs"
+          answerLabel={`${activity.sittingHours} hrs`}
+          icon={<IconArmchair size={20} className="text-ink" strokeWidth={1.5} />}
         />
       </QBlock>
     </>
   )
 }
 
-function Step6Nutrition({ nutrition, setNutrition }: { nutrition: NutritionResponses; setNutrition: (n: NutritionResponses) => void }) {
-  const mealStr = MEAL_OPTIONS[nutrition.mealRegularity - 1]
+// ── Step 4: Sleep (PROMIS Sleep Disturbance 8a) ────────────────────────────────
+
+function Step4Sleep({ sleep, setSleep }: { sleep: SleepResponses; setSleep: (s: SleepResponses) => void }) {
+  function setItem(i: number, v: number) {
+    setSleep({ items: sleep.items.map((x, j) => j === i ? v : x) })
+  }
   return (
     <>
       <StepHeader
-        category="Nutrition pillar"
-        title="How's your relationship with food?"
-        sub="No judgement — just an honest snapshot of your typical week."
+        category="Physical wellness · Sleep (PROMIS 8a)"
+        title="Let's talk about your sleep over the past week."
+        sub="In the past 7 days, select the response that best describes your experience."
       />
-      <QBlock question="Servings of vegetables or fruit per day" hint="1 serving ≈ 1 medium fruit, ½ cup cooked veg, or 1 cup leafy greens. WHO recommends 5+ daily.">
-        <Slider min={1} max={5} value={nutrition.fruitVeg} onChange={v => setNutrition({ ...nutrition, fruitVeg: v })}
-          leftLabel="None" rightLabel="7+ servings"
-          answerLabel={FRUIT_VEG_LABELS[nutrition.fruitVeg - 1]} icon={<IconLeaf size={20} className="text-ink" strokeWidth={1.5} />} />
-      </QBlock>
-      <QBlock question="Glasses of water per day">
-        <Slider min={1} max={5} value={nutrition.water} onChange={v => setNutrition({ ...nutrition, water: v })}
-          leftLabel="0–1 glasses" rightLabel="8+ glasses"
-          answerLabel={WATER_LABELS[nutrition.water - 1]} icon={<IconDroplet size={20} className="text-ink" strokeWidth={1.5} />} />
-      </QBlock>
-      <QBlock question="How often do you eat processed or fast food?">
-        <Slider min={1} max={5} value={nutrition.processed} onChange={v => setNutrition({ ...nutrition, processed: v })}
-          leftLabel="Never" rightLabel="Daily"
-          answerLabel={PROCESSED_LABELS[nutrition.processed - 1]} icon={<IconBurger size={20} className="text-ink" strokeWidth={1.5} />} />
-      </QBlock>
-      <QBlock question="How regular are your meal times?" hint="Skipping meals can impact blood sugar and energy">
-        <ChoiceGroup
-          options={MEAL_OPTIONS}
-          value={mealStr}
-          onChange={v => setNutrition({ ...nutrition, mealRegularity: MEAL_OPTIONS.indexOf(v) + 1 })}
-        />
-      </QBlock>
-      <QBlock question="How often do you consume alcohol?">
-        <Slider min={1} max={5} value={nutrition.alcohol} onChange={v => setNutrition({ ...nutrition, alcohol: v })}
-          leftLabel="Never" rightLabel="Daily"
-          answerLabel={ALCOHOL_LABELS[nutrition.alcohol - 1]} icon={<IconGlass size={20} className="text-ink" strokeWidth={1.5} />} />
-      </QBlock>
+      {SLEEP_ITEM_DEFS.map((item, i) => (
+        <QBlock key={i} question={item.text}>
+          <div className="flex flex-wrap gap-2 mt-2.5">
+            {item.options.map(({ label, value }) => (
+              <button
+                key={label}
+                onClick={() => setItem(i, value)}
+                className={`border rounded-[20px] px-3 py-1.5 text-[12px] cursor-pointer transition-colors
+                  ${sleep.items[i] === value
+                    ? 'bg-bg border-ink text-ink'
+                    : 'bg-card border-ink text-ink hover:bg-bg'}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </QBlock>
+      ))}
     </>
   )
 }
 
-// Frequency scale reused for the two new cognition questions (same as stress scale)
-const FREQ_ICONS = STRESS_ICONS
-const FREQ_LABELS = STRESS_LABELS
+// ── Step 5: Nutrition (STC + AUDIT-C) ─────────────────────────────────────────
 
-function Step7Cognition({ cognition, setCognition }: { cognition: CognitionResponses; setCognition: (c: CognitionResponses) => void }) {
+function Step5Nutrition({ nutrition, setNutrition }: { nutrition: NutritionResponses; setNutrition: (n: NutritionResponses) => void }) {
+  function setStc(i: number, v: number) {
+    setNutrition({ ...nutrition, stc: nutrition.stc.map((x, j) => j === i ? v : x) })
+  }
+  function setAudit(i: number, v: number) {
+    setNutrition({ ...nutrition, auditC: nutrition.auditC.map((x, j) => j === i ? v : x) })
+  }
   return (
     <>
       <StepHeader
-        category="Mental wellness · Cognition"
-        title="How's your mind been performing?"
-        sub="These questions help us understand your mental sharpness and clarity."
+        category="Nutrition pillar (STC + AUDIT-C)"
+        title="How's your relationship with food and drink?"
+        sub="No judgement — just an honest snapshot of your typical patterns."
       />
-      <QBlock question="Ability to focus on tasks for extended periods" hint="1 = cannot focus; 5 = deep, sustained concentration">
-        <Slider min={1} max={5} value={cognition.focus} onChange={v => setCognition({ ...cognition, focus: v })}
-          leftLabel="Cannot focus" rightLabel="Excellent focus"
-          answerLabel={FOCUS_LABELS[cognition.focus - 1]} icon={dynIcon(FOCUS_ICONS, cognition.focus)} />
-      </QBlock>
-      <QBlock question="How often do you experience brain fog or mental fatigue?" hint="Higher = more frequent fog (reverse-scored)">
-        <Slider min={1} max={5} value={cognition.fog} onChange={v => setCognition({ ...cognition, fog: v })}
-          leftLabel="Never" rightLabel="Every day"
-          answerLabel={FOG_LABELS[cognition.fog - 1]} icon={dynIcon(FOG_ICONS, cognition.fog)} />
-      </QBlock>
-      <QBlock question="How would you rate your short-term memory?">
-        <Slider min={1} max={5} value={cognition.memory} onChange={v => setCognition({ ...cognition, memory: v })}
-          leftLabel="Very poor" rightLabel="Sharp"
-          answerLabel={MEMORY_LABELS[cognition.memory - 1]} icon={<IconDatabase size={20} className="text-ink" strokeWidth={1.5} />} />
-      </QBlock>
-      <QBlock question="How often do you easily lose your train of thought mid-sentence?">
-        <Slider min={1} max={5} value={cognition.trainOfThought} onChange={v => setCognition({ ...cognition, trainOfThought: v })}
-          leftLabel="Never" rightLabel="Very often"
-          answerLabel={FREQ_LABELS[cognition.trainOfThought - 1]} icon={dynIcon(FREQ_ICONS, cognition.trainOfThought)} />
-      </QBlock>
-      <QBlock question="How often do you struggle to find the right word for a common object while speaking?">
-        <Slider min={1} max={5} value={cognition.wordFinding} onChange={v => setCognition({ ...cognition, wordFinding: v })}
-          leftLabel="Never" rightLabel="Very often"
-          answerLabel={FREQ_LABELS[cognition.wordFinding - 1]} icon={dynIcon(FREQ_ICONS, cognition.wordFinding)} />
-      </QBlock>
+      <p className="text-[11px] tracking-[.07em] uppercase text-ink-2 mb-3">Diet quality</p>
+      {STC_ITEMS.map((q, i) => {
+        const [opt0, opt1, opt2] = STC_RESPONSES[i]
+        return (
+          <QBlock key={i} question={q}>
+            <div className="flex flex-wrap gap-2 mt-2">
+              {([opt0, opt1, opt2] as string[]).map((label, vi) => (
+                <button
+                  key={vi}
+                  onClick={() => setStc(i, vi)}
+                  className={`border rounded-[20px] px-3 py-1.5 text-[12px] cursor-pointer transition-colors
+                    ${nutrition.stc[i] === vi ? 'bg-bg border-ink text-ink' : 'bg-card border-ink text-ink hover:bg-bg'}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </QBlock>
+        )
+      })}
+      <p className="text-[11px] tracking-[.07em] uppercase text-ink-2 mt-4 mb-3">Alcohol (AUDIT-C)</p>
+      {AUDITC_QUESTIONS.map((q, i) => (
+        <QBlock key={i} question={q}>
+          <div className="flex flex-wrap gap-2 mt-2">
+            {AUDITC_RESPONSES[i].map((label, vi) => (
+              <button
+                key={vi}
+                onClick={() => setAudit(i, vi)}
+                className={`border rounded-[20px] px-3 py-1.5 text-[12px] cursor-pointer transition-colors
+                  ${nutrition.auditC[i] === vi ? 'bg-bg border-ink text-ink' : 'bg-card border-ink text-ink hover:bg-bg'}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </QBlock>
+      ))}
     </>
   )
 }
+
+// ── Step 6: Cognition (PROMIS 4a) ──────────────────────────────────────────────
+
+function Step6Cognition({ cognition, setCognition }: { cognition: CognitionResponses; setCognition: (c: CognitionResponses) => void }) {
+  function setItem(i: number, v: number) {
+    setCognition({ items: cognition.items.map((x, j) => j === i ? v : x) })
+  }
+  return (
+    <>
+      <StepHeader
+        category="Mental wellness · Cognition (PROMIS 4a)"
+        title="How's your mind been performing over the last week?"
+        sub="In the past 7 days, how much did each of the following apply? Not at all = 1, Very much = 5."
+      />
+      {COG_ITEMS.map((q, i) => (
+        <QBlock key={i} question={q}>
+          <Slider
+            min={1} max={5} value={cognition.items[i]}
+            onChange={v => setItem(i, v)}
+            leftLabel="Not at all" rightLabel="Very much"
+            answerLabel={COG_LABELS[cognition.items[i]] ?? ''}
+            icon={<IconBrain size={20} className="text-ink" strokeWidth={1.5} />}
+          />
+        </QBlock>
+      ))}
+    </>
+  )
+}
+
+// ── Step 7: Wellbeing (WHO-5) ──────────────────────────────────────────────────
+
+function Step7Wellbeing({ wellbeing, setWellbeing }: { wellbeing: WellbeingResponses; setWellbeing: (w: WellbeingResponses) => void }) {
+  function setItem(i: number, v: number) {
+    setWellbeing({ items: wellbeing.items.map((x, j) => j === i ? v : x) })
+  }
+  return (
+    <>
+      <StepHeader
+        category="Wellbeing · WHO-5"
+        title="How have you been feeling overall, over the past couple of weeks?"
+        sub="Over the last two weeks, how often did each of the following apply? 0 = At no time, 5 = All of the time."
+      />
+      {WHO5_ITEMS.map((q, i) => (
+        <QBlock key={i} question={q}>
+          <Slider
+            min={0} max={5} value={wellbeing.items[i]}
+            onChange={v => setItem(i, v)}
+            leftLabel="At no time" rightLabel="All of the time"
+            answerLabel={WHO5_LABELS[wellbeing.items[i]] ?? ''}
+            icon={<IconSparkles size={20} className="text-ink" strokeWidth={1.5} />}
+          />
+        </QBlock>
+      ))}
+    </>
+  )
+}
+
+// ── Step 8: Symptoms ──────────────────────────────────────────────────────────
 
 function Step8Symptoms({ symptoms, setSymptoms }: { symptoms: SymptomsResponses; setSymptoms: (s: SymptomsResponses) => void }) {
   const PHYSICAL = ['Headaches', 'Muscle tension', 'Bloating', 'Low libido', 'Hair loss', 'Skin issues', 'None']
@@ -666,7 +804,7 @@ function Step8Symptoms({ symptoms, setSymptoms }: { symptoms: SymptomsResponses;
     <>
       <StepHeader
         category="Final check-in · Symptoms"
-        title="Any symptoms you've been noticing?"
+        title="Any symptoms you've been noticing recently?"
         sub="Select anything present in the last 4 weeks."
       />
       <QBlock question="Physical">
@@ -683,16 +821,11 @@ function Step8Symptoms({ symptoms, setSymptoms }: { symptoms: SymptomsResponses;
           className="w-full mt-2 border border-border rounded-[10px] px-3 py-2.5 text-[13px] text-ink bg-bg placeholder:text-ink-2/50 outline-none focus:border-ink resize-none min-h-[80px] transition-colors"
         />
       </QBlock>
-      <QBlock question="Overall quality of life right now">
-        <Slider min={1} max={5} value={symptoms.qol} onChange={v => setSymptoms({ ...symptoms, qol: v })}
-          leftLabel="Very poor" rightLabel="Thriving"
-          answerLabel={QOL_LABELS[symptoms.qol - 1]} icon={dynIcon(QOL_ICONS, symptoms.qol)} />
-      </QBlock>
     </>
   )
 }
 
-// ── Questionnaire shell ──
+// ── Questionnaire shell ───────────────────────────────────────────────────────
 
 const TOTAL = 8
 
@@ -701,24 +834,24 @@ export default function QuestionnairePage() {
   const [step, setStep] = useState(1)
 
   const [history,   setHistory]   = useState<HistoryResponses>({
-    unit: 'metric', sex: '', dietaryPreferences: [],
-    heightCm: '', weightKg: '', heightFt: '', heightIn: '', weightLbs: '',
+    age: null, sex: '', ethnicity: 'south_asian', dietaryPreferences: [], unit: 'metric',
+    heightCm: '', weightKg: '', heightFt: '', heightIn: '', weightLbs: '', waistCm: '',
     conditions: ['None'], conditionsOther: '',
     medications: 'None', medicationsText: '',
     allergies: 'None known', allergiesText: '',
     tobacco: 'Never', mentalHealth: 'No',
     familyHistory: ['None known'], familyHistoryOther: '',
   })
-  const [goals,     setGoals]     = useState<GoalId[]>([])
-  const [stress,    setStress]    = useState<StressResponses>({ q1: 1, q2: 1, q3: 1, q4: 1 })
-  const [activity,  setActivity]  = useState<ActivityResponses>({ vigorous: 1, moderate: 1, energy: 1, sitting: 1 })
-  const [sleep,     setSleep]     = useState<SleepResponses>({ duration: 1, latency: 1, restedness: 1, waking: 0 })
-  const [nutrition, setNutrition] = useState<NutritionResponses>({ fruitVeg: 1, water: 1, processed: 1, mealRegularity: 1, alcohol: 1 })
-  const [cognition, setCognition] = useState<CognitionResponses>({ focus: 1, fog: 1, memory: 1, trainOfThought: 1, wordFinding: 1 })
-  const [symptoms,  setSymptoms]  = useState<SymptomsResponses>({ physical: [], energyMood: [], otherSymptoms: '', qol: 1 })
+  const [stress,    setStress]    = useState<StressResponses>({ items: Array(10).fill(0) })
+  const [activity,  setActivity]  = useState<ActivityResponses>({ mvpaDays: 3, mvpaMinutes: 30, strengthDays: 2, sittingHours: 6 })
+  const [sleep,     setSleep]     = useState<SleepResponses>({ items: Array(8).fill(1) })
+  const [nutrition, setNutrition] = useState<NutritionResponses>({ stc: Array(8).fill(0), auditC: Array(3).fill(0) })
+  const [cognition, setCognition] = useState<CognitionResponses>({ items: Array(4).fill(3) })
+  const [wellbeing, setWellbeing] = useState<WellbeingResponses>({ items: Array(5).fill(3) })
+  const [symptoms,  setSymptoms]  = useState<SymptomsResponses>({ physical: [], energyMood: [], otherSymptoms: '' })
 
   function handleFinish() {
-    const answers: QuestionnaireResponses = { history, goals, stress, activity, sleep, nutrition, cognition, symptoms }
+    const answers: QuestionnaireResponses = { history, stress, activity, sleep, nutrition, cognition, wellbeing, symptoms }
     saveQuestionnaire(answers)
     router.push('/labs/entry')
   }
@@ -730,12 +863,12 @@ export default function QuestionnairePage() {
 
       <div className="px-6 pt-5">
         {step === 1 && <Step1History  history={history}     setHistory={setHistory}     />}
-        {step === 2 && <Step2Goals    goals={goals}         setGoals={setGoals}         />}
-        {step === 3 && <Step3Stress   stress={stress}       setStress={setStress}       />}
-        {step === 4 && <Step4Activity activity={activity}   setActivity={setActivity}   />}
-        {step === 5 && <Step5Sleep    sleep={sleep}         setSleep={setSleep}         />}
-        {step === 6 && <Step6Nutrition nutrition={nutrition} setNutrition={setNutrition} />}
-        {step === 7 && <Step7Cognition cognition={cognition} setCognition={setCognition} />}
+        {step === 2 && <Step2Stress   stress={stress}       setStress={setStress}       />}
+        {step === 3 && <Step3Activity activity={activity}   setActivity={setActivity}   />}
+        {step === 4 && <Step4Sleep    sleep={sleep}         setSleep={setSleep}         />}
+        {step === 5 && <Step5Nutrition nutrition={nutrition} setNutrition={setNutrition} />}
+        {step === 6 && <Step6Cognition cognition={cognition} setCognition={setCognition} />}
+        {step === 7 && <Step7Wellbeing wellbeing={wellbeing} setWellbeing={setWellbeing} />}
         {step === 8 && <Step8Symptoms symptoms={symptoms}   setSymptoms={setSymptoms}   />}
       </div>
 

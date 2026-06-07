@@ -40,9 +40,9 @@ export function WellnessReport() {
   const { currentScores } = mockData
   const overall = currentScores.overall
 
-  // Three lowest-scoring lifestyle dimensions
+  // Three lowest-scoring lifestyle dimensions (exclude overall and wellbeing cross-check)
   const weakDims = (Object.entries(currentScores) as [string, number][])
-    .filter(([k]) => k !== 'overall')
+    .filter(([k]) => k !== 'overall' && k !== 'wellbeing')
     .sort(([, a], [, b]) => a - b)
     .slice(0, 3)
 

@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
+import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/messages'
 import { NextRequest, NextResponse } from 'next/server'
 
 // Exact group + test names that the form expects
@@ -70,11 +71,11 @@ export async function POST(req: NextRequest) {
   const bytes = await file.arrayBuffer()
   const base64 = Buffer.from(bytes).toString('base64')
 
-  const fileBlock = isPdf
+  const fileBlock: ContentBlockParam = isPdf
     ? ({
         type: 'document' as const,
         source: { type: 'base64' as const, media_type: 'application/pdf' as const, data: base64 },
-      } as Parameters<typeof client.messages.create>[0]['messages'][0]['content'][0])
+      } as ContentBlockParam)
     : ({
         type: 'image' as const,
         source: {
@@ -82,7 +83,7 @@ export async function POST(req: NextRequest) {
           media_type: file.type as ImageMediaType,
           data: base64,
         },
-      } as Parameters<typeof client.messages.create>[0]['messages'][0]['content'][0])
+      } as ContentBlockParam)
 
   const prompt = `You are extracting blood test results from a lab report.
 
@@ -104,7 +105,7 @@ Return ONLY the JSON object. No markdown, no explanation.`
       messages: [
         {
           role: 'user',
-          content: [fileBlock, { type: 'text', text: prompt }],
+          content: [fileBlock, { type: 'text' as const, text: prompt }],
         },
       ],
     })

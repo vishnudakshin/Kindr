@@ -100,7 +100,6 @@ export function saveTodayEntry(tasksCompleted: number, tasksTotal: number): void
 
 export function saveQuestionnaire(answers: QuestionnaireResponses): void {
   mockData.questionnaire = answers
-  mockData.user.goals = answers.goals
   mockData.currentScores = computeAll(answers)
   const today = new Date().toISOString().split('T')[0]
   const last = mockData.scoreHistory[mockData.scoreHistory.length - 1]
@@ -114,29 +113,21 @@ export function saveQuestionnaire(answers: QuestionnaireResponses): void {
 
 const questionnaire: QuestionnaireResponses = {
   history: {
-    unit: 'metric',
-    sex: '',
-    dietaryPreferences: [],
-    heightCm: '', weightKg: '', heightFt: '', heightIn: '', weightLbs: '',
+    age: null, sex: '', ethnicity: 'south_asian', dietaryPreferences: [], unit: 'metric',
+    heightCm: '', weightKg: '', heightFt: '', heightIn: '', weightLbs: '', waistCm: '',
     conditions: ['None'], conditionsOther: '',
     medications: 'None', medicationsText: '',
     allergies: 'None known', allergiesText: '',
-    tobacco: 'Never',
-    mentalHealth: 'No',
+    tobacco: 'Never', mentalHealth: 'No',
     familyHistory: ['None known'], familyHistoryOther: '',
   },
-  goals: ['energy', 'sleep', 'clarity'],
-  stress: { q1: 3, q2: 3, q3: 2, q4: 3 },
-  activity: { vigorous: 2, moderate: 4, energy: 3, sitting: 7 },
-  sleep: { duration: 4, latency: 3, restedness: 3, waking: 1 },
-  nutrition: { fruitVeg: 3, water: 3, processed: 2, mealRegularity: 3, alcohol: 2 },
-  cognition: { focus: 3, fog: 2, memory: 3, trainOfThought: 2, wordFinding: 2 },
-  symptoms: {
-    physical: ['Headaches'],
-    energyMood: ['Afternoon crashes', 'Low motivation'],
-    otherSymptoms: '',
-    qol: 3,
-  },
+  stress:    { items: Array(10).fill(3) },
+  activity:  { mvpaDays: 3, mvpaMinutes: 45, strengthDays: 2, sittingHours: 7 },
+  sleep:     { items: Array(8).fill(2) },
+  nutrition: { stc: Array(8).fill(1), auditC: Array(3).fill(0) },
+  cognition: { items: Array(4).fill(3) },
+  wellbeing: { items: Array(5).fill(3) },
+  symptoms:  { physical: ['Headaches'], energyMood: ['Afternoon crashes', 'Low motivation'], otherSymptoms: '' },
 }
 
 const currentScores = computeAll(questionnaire)
@@ -146,7 +137,6 @@ export const mockData: AppData = {
     name: 'Alex',
     dateJoined: '2025-01-15',
     reassessmentDate: '2025-04-15',
-    goals: questionnaire.goals,
   },
 
   questionnaire,
@@ -275,11 +265,11 @@ export const mockData: AppData = {
   scoreHistory: [
     {
       date: '2024-10-15',
-      scores: { nutrition: 42, sleep: 38, activity: 45, cognition: 50, stress: 40, overall: 43 },
+      scores: { nutrition: 42, sleep: 38, activity: 45, cognition: 50, stress: 40, wellbeing: 44, overall: 43 },
     },
     {
       date: '2025-01-15',
-      scores: { nutrition: 55, sleep: 50, activity: 58, cognition: 60, stress: 52, overall: 55 },
+      scores: { nutrition: 55, sleep: 50, activity: 58, cognition: 60, stress: 52, wellbeing: 56, overall: 55 },
     },
     {
       date: '2025-04-15',
@@ -293,7 +283,7 @@ export const mockData: AppData = {
       startDate: '2024-10-15',
       endDate: '2025-01-15',
       days: makeDays('2024-10-15', 90),
-      finalScores: { nutrition: 55, sleep: 50, activity: 58, cognition: 60, stress: 52, overall: 55 },
+      finalScores: { nutrition: 55, sleep: 50, activity: 58, cognition: 60, stress: 52, wellbeing: 56, overall: 55 },
     } satisfies AssessmentCycle,
   ],
 

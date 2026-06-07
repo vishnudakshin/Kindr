@@ -3,8 +3,6 @@ import { PDFPageShell } from './PDFPageShell'
 import { S, PALETTE } from './styles'
 import type { SymptomsResponses } from '@/lib/types'
 
-const QOL_LABELS = ['', 'Very poor', 'Poor', 'Fair', 'Good', 'Excellent']
-
 const ALL_PHYSICAL = [
   'Headaches', 'Joint pain', 'Muscle aches', 'Back pain', 'Chest tightness',
   'Shortness of breath', 'Bloating / digestive discomfort', 'Skin issues', 'Hair loss',
@@ -61,11 +59,6 @@ export function PDFSymptoms({ symptoms, footerText, pageNumber }: Props) {
           <Text style={S.body}>{symptoms.otherSymptoms}</Text>
         </View>
       )}
-
-      <View style={{ marginTop: 8 }}>
-        <Text style={[S.muted, { marginBottom: 3 }]}>Quality of life</Text>
-        <Text style={S.body}>{QOL_LABELS[symptoms.qol] ?? '—'} ({symptoms.qol}/5)</Text>
-      </View>
     </PDFPageShell>
   )
 }

@@ -8,6 +8,7 @@ const DIM_LABEL: Record<string, string> = {
   sleep:     'Sleep quality',
   nutrition: 'Nutrition',
   cognition: 'Cognitive health',
+  wellbeing: 'Wellbeing (WHO-5)',
 }
 
 function scoreColor(n: number) {
@@ -45,6 +46,9 @@ function buildImprovements(): ImprovementArea[] {
   const { questionnaire } = mockData
   const { nutrition, activity, sleep } = questionnaire
 
+  const stcTotal = nutrition.stc.reduce((a, b) => a + b, 0)
+  const sleepDisturbance = sleep.items.reduce((a, b) => a + b, 0)
+
   return [
     {
       id:    'diet',
@@ -52,15 +56,12 @@ function buildImprovements(): ImprovementArea[] {
       color: '#4A7A32',
       bg:    '#E6F2DE',
       points: [
-        nutrition.processed <= 2
-          ? 'Reduce ultra-processed and packaged foods to twice a week or fewer'
-          : 'You\'re doing well with processed food — maintain this habit',
-        nutrition.fruitVeg < 4
-          ? 'Aim for 5 portions of fruit and vegetables daily — add one extra serving per meal'
-          : 'Great fruit and vegetable intake — keep it consistent',
+        stcTotal >= 10
+          ? 'Reduce ultra-processed, sugary, and high-fat foods — aim to score green on at least 6 of 8 STC items'
+          : 'Your diet quality looks reasonable — focus on consistency and variety',
+        'Aim for 5 portions of fruit and vegetables daily — add one extra serving at each main meal',
         'Choose low-glycaemic foods at meals to support metabolic health and reduce insulin spikes',
-        'Increase dietary iron through lean red meat, lentils, and dark leafy greens to support ferritin levels',
-      ].slice(0, 3),
+      ],
     },
     {
       id:    'lifestyle',
@@ -68,10 +69,10 @@ function buildImprovements(): ImprovementArea[] {
       color: '#5A4880',
       bg:    '#E8E4F0',
       points: [
-        sleep.duration <= 4
-          ? 'Aim for 7–9 hours of sleep — establish a consistent sleep and wake time, even on weekends'
-          : 'Sleep duration looks reasonable — focus on improving sleep quality and restedness',
-        activity.sitting >= 6
+        sleepDisturbance >= 24
+          ? 'Aim for 7–9 hours of uninterrupted sleep — a consistent wake time anchors your circadian rhythm'
+          : 'Sleep disturbance is moderate — focus on wind-down routine and reducing screen time before bed',
+        activity.sittingHours >= 8
           ? 'Break up prolonged sitting — aim to move for at least 5 minutes every hour'
           : 'Good job limiting sedentary time — keep active throughout the day',
         'Introduce a 5-minute breathing or mindfulness practice to manage stress and support afternoon energy',
@@ -83,13 +84,13 @@ function buildImprovements(): ImprovementArea[] {
       color: '#2A5A80',
       bg:    '#DDE9F5',
       points: [
-        activity.vigorous < 3
-          ? 'Add 1–2 more vigorous sessions weekly — cycling, running, or interval training'
-          : 'Good vigorous activity — consider adding variety to avoid adaptation',
-        activity.sitting >= 6
+        activity.mvpaDays < 3
+          ? 'Add 1–2 more moderate-to-vigorous sessions weekly — aim for 150+ min/week total'
+          : 'Good activity level — consider adding variety or increasing intensity to keep progressing',
+        activity.sittingHours >= 8
           ? 'Aim for 8,000–10,000 steps daily to offset high sedentary time'
           : 'Keep up your daily movement habit',
-        'Incorporate resistance training 2× per week — it supports metabolic health, bone density, and body composition',
+        'Incorporate muscle-strengthening activity 2× per week — it supports metabolic health, bone density, and body composition',
       ],
     },
     {
@@ -113,9 +114,9 @@ export function WellnessReport() {
   const overall = currentScores.overall
   const overallColor = scoreColor(overall)
 
-  // All 5 dimensions, sorted weakest first
+  // 5 behavioural dimensions sorted weakest first; wellbeing shown separately
   const weakDims = (Object.entries(currentScores) as [string, number][])
-    .filter(([k]) => k !== 'overall')
+    .filter(([k]) => k !== 'overall' && k !== 'wellbeing')
     .sort(([, a], [, b]) => a - b)
 
   const labIssues = bodySystems
@@ -179,6 +180,23 @@ export function WellnessReport() {
               )
             })}
           </div>
+          {/* Wellbeing cross-check — shown separately */}
+          {currentScores.wellbeing !== undefined && (() => {
+            const wb = currentScores.wellbeing
+            const clr = scoreColor(wb)
+            return (
+              <div className="mt-3 pt-3 border-t border-border flex items-center gap-3">
+                <div className="w-[5px] h-[5px] rounded-full shrink-0 opacity-60" style={{ background: clr }} />
+                <span className="flex-1 text-[13px] text-ink-2">Wellbeing (WHO-5 · cross-check)</span>
+                <div className="flex items-center gap-2.5 shrink-0">
+                  <div className="w-16 h-[3px] rounded-full bg-border overflow-hidden">
+                    <div className="h-full rounded-full opacity-70" style={{ width: `${wb}%`, background: clr }} />
+                  </div>
+                  <span className="text-[11px] w-5 text-right tabular-nums font-medium" style={{ color: clr }}>{wb}</span>
+                </div>
+              </div>
+            )
+          })()}
         </div>
 
         {/* Lab findings */}

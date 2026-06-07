@@ -1,52 +1,61 @@
-export type GoalId =
-  | 'energy'
-  | 'mood'
-  | 'clarity'
-  | 'sleep'
-  | 'nutrition'
-  | 'fitness'
-  | 'prevention'
-  | 'wellbeing'
+// lib/types.ts — Kindr v3 schema
+//
+// Migrated from the v2 types to match the v3 evidence-based instrument set.
+// BREAKING CHANGES vs v2 (the questionnaire UI in app/questionnaire/page.tsx and
+// lib/data.ts must be updated to collect/persist these fields):
+//   • Removed `GoalId` and all `goals` (goals selector dropped from questionnaire + profile).
+//   • Stress:    PSS-4 (q1–q4)                  → PSS-10 (items[10], each 0–4).
+//   • Activity:  vigorous/moderate/energy/sitting → EVS (mvpaDays, mvpaMinutes) + strengthDays + sittingHours.
+//   • Sleep:     partial-PSQI fields            → PROMIS Sleep Disturbance SF 8a (items[8], each 1–5).
+//   • Nutrition: ad-hoc fields                  → STC (stc[8], each 0–2) + AUDIT-C (auditC[3], each 0–4).
+//   • Cognition: ad-hoc fields                  → PROMIS Cognitive Function SF 4a (items[4], each 1–5).
+//   • Added `WellbeingResponses` (WHO-5, items[5], each 0–5); `qol` removed from SymptomsResponses.
+//   • History:   added `age`, `waistCm`, `ethnicity` (drive age/sex/ethnicity-specific ranges & cut-offs).
+//   • WellnessScores: added `wellbeing`. UserProfile.goals removed.
+
+// ============================================================
+// Questionnaire response types
+// ============================================================
 
 export interface StressResponses {
-  q1: number // 1–5: unable to control things
-  q2: number // 1–5: confident handling problems (positive → reverse-scored)
-  q3: number // 1–5: difficulties piling up
-  q4: number // 1–5: things going your way (positive → reverse-scored)
+  // PSS-10: 10 items, each 0–4 (0 = Never … 4 = Very often).
+  // Positively-worded items (0-based indices 3,4,6,7) are reverse-scored — see PSS10_REVERSE_INDICES.
+  items: number[] // length 10
 }
 
 export interface ActivityResponses {
-  vigorous: number // 1–7 days
-  moderate: number // 1–7 days
-  energy: number   // 1–5
-  sitting: number  // 1–10 hours (reverse-scored)
+  mvpaDays: number      // 0–7   days/week of moderate-to-strenuous exercise (EVS Q1)
+  mvpaMinutes: number   // ≥0    minutes per session on those days (EVS Q2)
+  strengthDays: number  // 0–7   days/week of muscle-strengthening activity
+  sittingHours: number  // ≥0    hours/day spent sitting (sedentary — scored separately)
 }
 
 export interface SleepResponses {
-  duration: number   // 1–6 (3hrs→10+hrs)
-  latency: number    // 1–6 (instantly→60+min, reverse-scored)
-  restedness: number // 1–5
-  waking: 0 | 1 | 2 | 3 // 0=rarely, 1=1-2x/wk, 2=3-4x/wk, 3=nightly (reverse-scored)
+  // PROMIS Sleep Disturbance Short Form 8a: 8 items, each 1–5. Higher raw = MORE disturbance.
+  items: number[] // length 8
 }
 
 export interface NutritionResponses {
-  fruitVeg: number       // 1–5
-  water: number          // 1–5
-  processed: number      // 1–5 (reverse-scored)
-  mealRegularity: number // 1–4 (1=skip often, 4=optimal)
-  alcohol: number        // 1–5 (reverse-scored)
+  stc: number[]    // Starting the Conversation: 8 items, each 0–2 (higher = less healthy)
+  auditC: number[] // AUDIT-C: 3 items, each 0–4 (higher = higher-risk drinking)
 }
 
 export interface CognitionResponses {
-  focus: number          // 1–5
-  fog: number            // 1–5 (reverse-scored)
-  memory: number         // 1–5
-  trainOfThought: number // 1–5 (reverse-scored: more frequent = worse)
-  wordFinding: number    // 1–5 (reverse-scored: more frequent = worse)
+  // PROMIS Cognitive Function Short Form 4a: 4 items, each 1–5. Higher = BETTER function.
+  items: number[] // length 4
 }
 
+export interface WellbeingResponses {
+  // WHO-5 Wellbeing Index: 5 items, each 0–5. Higher = better wellbeing.
+  items: number[] // length 5
+}
+
+export type Ethnicity = 'south_asian' | 'east_asian' | 'general' | 'unspecified'
+
 export interface HistoryResponses {
-  sex: string
+  age: number | null            // NEW — required for age-specific lab reference ranges & risk
+  sex: string                   // 'Female' | 'Male' | 'Intersex' | 'Prefer to self-describe'
+  ethnicity?: Ethnicity         // NEW — selects BMI / waist cut-offs (defaults to 'general')
   dietaryPreferences: string[]
   unit: 'metric' | 'imperial'
   heightCm: string
@@ -54,6 +63,7 @@ export interface HistoryResponses {
   heightFt: string
   heightIn: string
   weightLbs: string
+  waistCm: string               // NEW — always in cm (for waist-to-height ratio)
   conditions: string[]
   conditionsOther: string
   medications: string
@@ -70,19 +80,64 @@ export interface SymptomsResponses {
   physical: string[]
   energyMood: string[]
   otherSymptoms: string
-  qol: number // 1–5
+  // NOTE: `qol` removed in v3 — overall wellbeing is now the WHO-5 (WellbeingResponses).
 }
 
 export interface QuestionnaireResponses {
   history: HistoryResponses
-  goals: GoalId[]
   stress: StressResponses
   activity: ActivityResponses
   sleep: SleepResponses
   nutrition: NutritionResponses
   cognition: CognitionResponses
+  wellbeing: WellbeingResponses
   symptoms: SymptomsResponses
 }
+
+// ============================================================
+// Scoring output types
+// ============================================================
+
+export type WellnessDomain =
+  | 'stress' | 'activity' | 'sleep' | 'nutrition' | 'cognition' | 'wellbeing'
+
+export type Confidence = 'low' | 'moderate' | 'high'
+
+export interface DomainResult {
+  domain: WellnessDomain
+  wellness: number   // 0–100, higher = better
+  raw: number        // instrument raw score (native scale)
+  band: string       // human-readable severity band
+  flags: string[]    // e.g. 'elevated_stress', 'meets_aerobic_guideline'
+  confidence: Confidence
+  meta?: Record<string, number | boolean | string>
+}
+
+export interface AnthropometricResult {
+  bmi: number | null
+  bmiCategory: string | null
+  whtr: number | null // waist-to-height ratio
+  flags: string[]     // e.g. 'central_adiposity', 'bmi_obese'
+}
+
+export interface AlcoholResult {
+  raw: number       // AUDIT-C total 0–12
+  riskFlag: boolean // sex-specific threshold met
+  wellness: number  // optional 0–100 (NOT folded into the nutrition domain)
+}
+
+export interface QuestionnaireScore {
+  domains: Record<WellnessDomain, DomainResult>
+  anthropometrics: AnthropometricResult
+  alcohol: AlcoholResult
+  symptomFlags: string[]  // normalised symptom slugs, passed to the labs fusion layer
+  overall: number         // 0–100, weighted mean of the 5 behavioural/psychometric domains
+  wellbeingCrossCheck: { delta: number; flag: boolean } // WHO-5 vs domain-mean divergence
+}
+
+// ============================================================
+// Existing app types (carried over; `wellbeing` added, `goals` removed)
+// ============================================================
 
 export interface WellnessScores {
   nutrition: number
@@ -90,6 +145,7 @@ export interface WellnessScores {
   activity: number
   cognition: number
   stress: number
+  wellbeing: number // NEW
   overall: number
 }
 
@@ -146,7 +202,7 @@ export interface UserProfile {
   name: string
   dateJoined: string
   reassessmentDate: string
-  goals: GoalId[]
+  // `goals` removed in v3.
 }
 
 export type SectionId =

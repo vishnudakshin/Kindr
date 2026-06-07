@@ -6,16 +6,8 @@ import { BrandHeader } from '@/components/ui/BrandHeader'
 import { Button } from '@/components/ui/Button'
 import { mockData } from '@/lib/data'
 import { ShareReportButton } from '@/components/share/ShareReportButton'
-import type { GoalId } from '@/lib/types'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-
-const GOAL_LABELS: Record<GoalId, string> = {
-  energy:     'More energy',   mood:       'Better mood',
-  clarity:    'Mental clarity', sleep:      'Better sleep',
-  nutrition:  'Eat well',       fitness:    'Get active',
-  prevention: 'Prevention',    wellbeing:  'Overall wellbeing',
-}
 
 const WORKOUT_TIMES = ['Morning','Afternoon','Evening','No preference']
 
@@ -206,17 +198,6 @@ export default function ProfilePage() {
               ]}
             />
           </FieldRow>
-        </SectionCard>
-
-        {/* Goals */}
-        <SectionCard label="Your goals">
-          <div className="flex flex-wrap gap-2">
-            {user.goals.map(g => (
-              <span key={g} className="px-3 py-1.5 rounded-full bg-accent text-ink text-[12px] font-medium">
-                {GOAL_LABELS[g]}
-              </span>
-            ))}
-          </div>
         </SectionCard>
 
         {/* Share report */}

@@ -8,11 +8,12 @@ import type { WellnessScores } from '@/lib/types'
 
 export function WellnessRadar({ scores }: { scores: WellnessScores }) {
   const data = [
-    { dim: 'Nutrition', value: scores.nutrition },
-    { dim: 'Sleep',     value: scores.sleep },
-    { dim: 'Activity',  value: scores.activity },
-    { dim: 'Cognition', value: scores.cognition },
-    { dim: 'Stress',    value: scores.stress },
+    { dim: 'Nutrition',  value: scores.nutrition  },
+    { dim: 'Sleep',      value: scores.sleep      },
+    { dim: 'Activity',   value: scores.activity   },
+    { dim: 'Cognition',  value: scores.cognition  },
+    { dim: 'Stress',     value: scores.stress     },
+    { dim: 'Wellbeing',  value: scores.wellbeing  },
   ]
 
   const overall = scores.overall
@@ -24,7 +25,7 @@ export function WellnessRadar({ scores }: { scores: WellnessScores }) {
   return (
     <div className="bg-card rounded-2xl border border-border shadow-card p-5">
       <div className="flex items-baseline justify-between mb-4">
-        <p className="text-[13px] text-ink-2">5 wellness dimensions</p>
+        <p className="text-[13px] text-ink-2"></p>
         <div className="flex items-baseline gap-1.5">
           <span className="font-serif text-[28px] font-medium text-ink leading-none">{overall}</span>
           <span className="text-[11px] text-ink-2">/100 · {grade}</span>

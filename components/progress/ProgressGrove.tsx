@@ -2,11 +2,28 @@
 
 import { useMemo } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
-import {
-  completionToStage, STAGE_SCALE, STAGE_CONES,
-  type GrowthStage,
-} from '@/lib/scoring'
 import type { GroveDay } from '@/lib/data'
+
+// ── Grove growth-stage helpers (visual logic, not scoring) ───────────────────
+
+type GrowthStage = 'none' | 'sprout' | 'sapling' | 'young' | 'mature' | 'oak'
+
+function completionToStage(completion: number, future?: boolean): GrowthStage {
+  if (future || completion <= 0) return 'none'
+  if (completion <= 0.1) return 'sprout'
+  if (completion <= 0.4) return 'sapling'
+  if (completion <= 0.6) return 'young'
+  if (completion <= 0.9) return 'mature'
+  return 'oak'
+}
+
+const STAGE_SCALE: Record<GrowthStage, number> = {
+  none: 0, sprout: 0.35, sapling: 0.5, young: 0.65, mature: 0.8, oak: 1.0,
+}
+
+const STAGE_CONES: Record<GrowthStage, number> = {
+  none: 0, sprout: 1, sapling: 1, young: 2, mature: 2, oak: 3,
+}
 
 // ── Grid geometry constants ───────────────────────────────────────────────────
 

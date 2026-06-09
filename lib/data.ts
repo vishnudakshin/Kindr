@@ -1,5 +1,6 @@
 import type { AppData, QuestionnaireResponses, BloodPanel, DayEntry, AssessmentCycle, ShareRecord, SectionId, RelationshipType } from './types'
 import { computeAll } from './scoring'
+import { interpretPanel, type SystemStatus as InterpSysStatus } from './lab-interpretation'
 
 // ── Cycle day generator ────────────────────────────────────────────────────────
 
@@ -41,7 +42,7 @@ export const bloodTrends: Record<string, TrendSeries> = {
   'Vitamin B12':          { goodDirection: 'up',   points: [{ date: 'Oct 24', value: 280  }, { date: 'Jan 25', value: 295  }, { date: 'Apr 25', value: 310  }] },
   'Fasting Glucose':      { goodDirection: 'down', points: [{ date: 'Oct 24', value: 104  }, { date: 'Jan 25', value: 100  }, { date: 'Apr 25', value: 96   }] },
   'Fasting Insulin':      { goodDirection: 'down', points: [{ date: 'Oct 24', value: 7.8  }, { date: 'Jan 25', value: 8.5  }, { date: 'Apr 25', value: 9.2  }] },
-  'HOMA-IR2':             { goodDirection: 'down', points: [{ date: 'Oct 24', value: 1.8  }, { date: 'Jan 25', value: 2.0  }, { date: 'Apr 25', value: 2.1  }] },
+  'HOMA-IR':              { goodDirection: 'down', points: [{ date: 'Oct 24', value: 1.8  }, { date: 'Jan 25', value: 2.0  }, { date: 'Apr 25', value: 2.1  }] },
   HbA1c:                  { goodDirection: 'down', points: [{ date: 'Oct 24', value: 5.8  }, { date: 'Jan 25', value: 5.6  }, { date: 'Apr 25', value: 5.4  }] },
   'Total Cholesterol':    { goodDirection: 'down', points: [{ date: 'Oct 24', value: 210  }, { date: 'Jan 25', value: 202  }, { date: 'Apr 25', value: 195  }] },
   LDL:                    { goodDirection: 'down', points: [{ date: 'Oct 24', value: 125  }, { date: 'Jan 25', value: 121  }, { date: 'Apr 25', value: 118  }] },
@@ -160,41 +161,45 @@ export const mockData: AppData = {
       Platelets:             { value: '210',  unit: '×10⁹/L', refRange: '150–400',   status: 'normal' },
       NLR:                   { value: '2.0',  unit: '',        refRange: '<3.0',      status: 'normal' },
     },
-    'Acute Phase Reactants': {
-      'hs-CRP':   { value: '2.1', unit: 'mg/L',  refRange: '<1.0',      status: 'borderline' },
-      'ESR':      { value: '12',  unit: 'mm/hr', refRange: '0–15',      status: 'normal' },
-      'Ferritin': { value: '28',  unit: 'ng/mL', refRange: '30–400',    status: 'borderline' },
+    'Inflammation & Iron Profile': {
+      'hs-CRP':                 { value: '2.1', unit: 'mg/L',   refRange: '<1.0',     status: 'borderline' },
+      'ESR':                    { value: '12',  unit: 'mm/hr',  refRange: '0–15',     status: 'normal' },
+      'Ferritin':               { value: '28',  unit: 'ng/mL',  refRange: '30–400',   status: 'borderline' },
+      'Serum Iron':             { value: '85',  unit: 'µg/dL',  refRange: '60–170',   status: 'normal' },
+      'TIBC':                   { value: '340', unit: 'µg/dL',  refRange: '240–450',  status: 'normal' },
+      'Transferrin Saturation': { value: '25',  unit: '%',      refRange: '20–50',    status: 'normal' },
     },
-    'Vitamins': {
-      'Vitamin D (25-OH)': { value: '24',  unit: 'ng/mL', refRange: '30–100',   status: 'borderline' },
-      'Folate (B9)':       { value: '9.2', unit: 'ng/mL', refRange: '3.1–20',   status: 'normal' },
-      'Vitamin B12':       { value: '310', unit: 'pg/mL', refRange: '200–900',  status: 'normal' },
+    'Vitamins & Minerals': {
+      'Vitamin D (25-OH)': { value: '24',  unit: 'ng/mL', refRange: '30–100',  status: 'borderline' },
+      'Folate (B9)':       { value: '9.2', unit: 'ng/mL', refRange: '3.1–20',  status: 'normal' },
+      'Vitamin B12':       { value: '310', unit: 'pg/mL', refRange: '200–900', status: 'normal' },
+      'Magnesium':         { value: '',    unit: 'mg/dL', refRange: '1.7–2.2', status: undefined },
+      'Sodium':            { value: '140', unit: 'mEq/L', refRange: '136–145', status: 'normal' },
+      'Potassium':         { value: '4.1', unit: 'mEq/L', refRange: '3.5–5.0', status: 'normal' },
+      'Chloride':          { value: '102', unit: 'mEq/L', refRange: '98–107',  status: 'normal' },
+      'Bicarbonate':       { value: '24',  unit: 'mEq/L', refRange: '22–29',   status: 'normal' },
+      'Calcium':           { value: '9.6', unit: 'mg/dL', refRange: '8.5–10.5',status: 'normal' },
     },
     'Liver Function': {
-      'ALT':              { value: '22',  unit: 'U/L',  refRange: '7–56',    status: 'normal' },
-      'AST':              { value: '20',  unit: 'U/L',  refRange: '10–40',   status: 'normal' },
-      'GGT':              { value: '28',  unit: 'U/L',  refRange: '9–48',    status: 'normal' },
-      'ALP':              { value: '74',  unit: 'U/L',  refRange: '44–147',  status: 'normal' },
+      'ALT':              { value: '22',  unit: 'U/L',   refRange: '7–56',    status: 'normal' },
+      'AST':              { value: '20',  unit: 'U/L',   refRange: '10–40',   status: 'normal' },
+      'GGT':              { value: '28',  unit: 'U/L',   refRange: '9–48',    status: 'normal' },
+      'ALP':              { value: '74',  unit: 'U/L',   refRange: '44–147',  status: 'normal' },
       'Bilirubin':        { value: '0.8', unit: 'mg/dL', refRange: '0.2–1.2', status: 'normal' },
-      'Total Protein':    { value: '7.1', unit: 'g/dL', refRange: '6.3–8.2', status: 'normal' },
-      'Albumin':          { value: '4.2', unit: 'g/dL', refRange: '3.5–5.0', status: 'normal' },
-      'Globulin':         { value: '2.9', unit: 'g/dL', refRange: '2.0–3.5', status: 'normal' },
-      'Fatty Liver Index': { value: '32', unit: '',      refRange: '<30',     status: 'borderline' },
+      'Total Protein':    { value: '7.1', unit: 'g/dL',  refRange: '6.3–8.2', status: 'normal' },
+      'Albumin':          { value: '4.2', unit: 'g/dL',  refRange: '3.5–5.0', status: 'normal' },
+      'Globulin':         { value: '2.9', unit: 'g/dL',  refRange: '2.0–3.5', status: 'normal' },
+      'Fatty Liver Index':{ value: '32',  unit: '',       refRange: '<30',     status: 'borderline' },
     },
     'Kidney Function': {
-      'Creatinine': { value: '0.9',  unit: 'mg/dL',   refRange: '0.7–1.2',   status: 'normal' },
-      'eGFR':       { value: '92',   unit: 'mL/min',  refRange: '>60',       status: 'normal' },
-      'BUN/Urea':   { value: '15',   unit: 'mg/dL',   refRange: '7–25',      status: 'normal' },
-      'Sodium':     { value: '140',  unit: 'mEq/L',   refRange: '136–145',   status: 'normal' },
-      'Potassium':  { value: '4.1',  unit: 'mEq/L',   refRange: '3.5–5.0',   status: 'normal' },
-      'Chloride':   { value: '102',  unit: 'mEq/L',   refRange: '98–107',    status: 'normal' },
-      'Calcium':    { value: '9.6',  unit: 'mg/dL',   refRange: '8.5–10.5',  status: 'normal' },
-      'Bicarbonate':{ value: '24',   unit: 'mEq/L',   refRange: '22–29',     status: 'normal' },
+      'Creatinine': { value: '0.9', unit: 'mg/dL',  refRange: '0.7–1.2', status: 'normal' },
+      'eGFR':       { value: '92',  unit: 'mL/min', refRange: '>60',     status: 'normal' },
+      'BUN/Urea':   { value: '15',  unit: 'mg/dL',  refRange: '7–25',    status: 'normal' },
     },
     'Metabolic': {
       'Fasting Glucose':  { value: '96',  unit: 'mg/dL', refRange: '70–100',   status: 'normal' },
       'Fasting Insulin':  { value: '9.2', unit: 'µU/mL', refRange: '2–25',     status: 'normal' },
-      'HOMA-IR2':         { value: '2.1', unit: '',       refRange: '<2.0',     status: 'borderline' },
+      'HOMA-IR':          { value: '2.1', unit: 'index',  refRange: '<2.0',     status: 'borderline' },
       'HbA1c':            { value: '5.4', unit: '%',      refRange: '<5.7',     status: 'normal' },
     },
     'Lipids & Cardiac': {
@@ -323,7 +328,7 @@ export function saveShareRecord(
 
 // ── Body model types & data ───────────────────────────────────────────────────
 
-export type SystemStatus = 'optimal' | 'monitor' | 'action'
+export type SystemStatus = 'optimal' | 'monitor' | 'action' | 'urgent'
 
 export interface BodySystem {
   id:             string
@@ -337,52 +342,50 @@ export interface BodySystem {
 
 export const STATUS_META: Record<SystemStatus, { color: string; label: string }> = {
   optimal: { color: '#2E7D32', label: 'Optimal' },
-  monitor: { color: '#C77D2E', label: 'Needs attention' },
-  action:  { color: '#C0392B', label: 'Action needed' },
+  monitor: { color: '#C77D2E', label: 'Monitor' },
+  action:  { color: '#C0392B', label: 'Needs attention' },
+  urgent:  { color: '#7D1A1A', label: 'Urgent' },
 }
 
+// Computed once at module init using the interpretation layer.
+const _labInterp = interpretPanel(mockData.bloodPanel, mockData.questionnaire.history)
+const _sysMap = new Map<string, InterpSysStatus>(
+  _labInterp.systems.map(s => [s.system, s])
+)
+
 function deriveSystem(
-  id:         string,
-  name:       string,
-  panelKeys:  string[],
-  anchor:     { x: number; y: number },
-  side:       'left' | 'right',
+  id:        string,
+  name:      string,
+  systemKey: string,   // BodySystem string from lab-config (e.g. 'Blood & immune')
+  anchor:    { x: number; y: number },
+  side:      'left' | 'right',
 ): BodySystem {
-  const entries   = panelKeys.flatMap(k => Object.values(mockData.bloodPanel[k] ?? {}))
-  const active    = entries.filter(t => t.value !== '')
-  const deficient = active.filter(t => t.status === 'borderline' || t.status === 'abnormal')
-  const status: SystemStatus = active.some(t => t.status === 'abnormal')
-    ? 'action'
-    : active.some(t => t.status === 'borderline')
-    ? 'monitor'
-    : 'optimal'
+  const interp = _sysMap.get(systemKey)
+  const label  = interp?.label ?? 'Optimal'
+  const status: SystemStatus =
+    label === 'Urgent'          ? 'urgent' :
+    label === 'Needs attention' ? 'action' :
+    label === 'Monitor'         ? 'monitor' : 'optimal'
   return {
     id, name, status,
-    markerCount:    active.length,
-    deficientCount: deficient.length,
+    markerCount:    interp?.measured ?? 0,
+    deficientCount: interp?.drivers?.length ?? 0,
     anchor, side,
   }
 }
 
-// Anchors are % of figure box. Use CALIBRATE=true in BodyModel to tune them.
-// Anchors calibrated against the 1024x1536 clean stipple asset
-// (x/y = % of figure-box div which equals % of image since img fills the div).
+// Anchors calibrated against the 1024x1536 clean stipple asset.
 // Flip CALIBRATE=true in BodyModel to re-tune interactively.
 export const bodySystems: BodySystem[] = [
   // LEFT column — top to bottom
-  deriveSystem('thyroid',   'Thyroid',        ['Thyroid'],
-    { x: 50,   y: 21   }, 'left'),
-  deriveSystem('blood',     'Blood & Immune',  ['Complete Blood Count', 'Acute Phase Reactants'],
-    { x: 58,   y: 80   }, 'right'),
-  deriveSystem('liver',     'Liver',           ['Liver Function'],
-    { x: 44,   y: 39   }, 'left'),
-  deriveSystem('vitamins',  'Vitamins',        ['Vitamins'],
-    { x: 42,   y: 80   }, 'left'),
+  deriveSystem('thyroid',      'Thyroid',                    'Thyroid',             { x: 50, y: 21 }, 'left'),
+  deriveSystem('liver',        'Liver',                      'Liver',               { x: 44, y: 39 }, 'left'),
+  deriveSystem('blood',        'Blood',                      'Blood',               { x: 44, y: 55 }, 'left'),
+  deriveSystem('vitamins',     'Vitamins & Minerals',        'Vitamins & Minerals', { x: 42, y: 70 }, 'left'),
   // RIGHT column — top to bottom
-  deriveSystem('heart',     'Heart',           ['Lipids & Cardiac'],
-    { x: 52,   y: 27   }, 'right'),
-  deriveSystem('metabolic', 'Metabolic',       ['Metabolic'],
-    { x: 56,   y: 60   }, 'right'),
-  deriveSystem('kidney',    'Kidney',          ['Kidney Function', 'Urinalysis'],
-    { x: 56,   y: 43   }, 'right'),
+  deriveSystem('hormones',     'Stress & Hormones',          'Hormones',            { x: 50, y: 10 }, 'right'),
+  deriveSystem('heart',        'Heart & Lipids',             'Heart & Lipids',      { x: 52, y: 27 }, 'right'),
+  deriveSystem('kidney',       'Kidney & Urinalysis',        'Kidney',              { x: 56, y: 43 }, 'right'),
+  deriveSystem('inflammation', 'Inflammation & Iron Profile','Inflammation & Iron', { x: 56, y: 60 }, 'right'),
+  deriveSystem('metabolic',    'Metabolic',                  'Metabolic',           { x: 58, y: 80 }, 'right'),
 ]

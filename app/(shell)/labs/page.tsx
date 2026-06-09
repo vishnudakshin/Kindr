@@ -1,12 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import { IconChevronDown, IconChevronUp } from '@tabler/icons-react'
+import { IconChevronDown, IconChevronUp, IconAlertCircle } from '@tabler/icons-react'
 import { BrandHeader } from '@/components/ui/BrandHeader'
 import { RangeBar } from '@/components/dashboard/RangeBar'
 import { TrendSparkline } from '@/components/dashboard/TrendSparkline'
 import { HealthDial } from '@/components/dashboard/SystemCard'
 import { mockData, bloodTrends } from '@/lib/data'
+import { interpretPanel, tierToStatus, type BiomarkerStatus, type SystemStatus as LabSysStatus } from '@/lib/lab-interpretation'
+import { GROUP_TO_SYSTEM } from '@/lib/lab-config'
 import type { BloodTestResult } from '@/lib/types'
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -25,18 +27,37 @@ const STATUS_LABEL: Record<Status, string> = {
   abnormal:   'Out of range',
 }
 
+const SYS_LABEL_COLOR: Record<string, string> = {
+  'Optimal':        '#5A7A50',
+  'Monitor':        '#B8842A',
+  'Needs attention':'#A63030',
+  'Urgent':         '#7D1A1A',
+}
+
 const NARRATIVES: Record<string, string> = {
-  'Complete Blood Count':    'All blood cell counts are within range — no signs of anaemia or infection.',
-  'Acute Phase Reactants':   'CRP is mildly elevated and ferritin is at the low end. Worth monitoring inflammation.',
-  'Vitamins':                'Vitamin D is below the optimal zone. B12 and folate look healthy.',
-  'Liver Function':          'Liver enzymes are all normal. The fatty liver index is marginally elevated.',
-  'Kidney Function':         'All kidney markers are within range — filtration rate is excellent.',
-  'Metabolic':               'Glucose and HbA1c are good. HOMA-IR is slightly elevated, an early signal of insulin resistance.',
-  'Lipids & Cardiac':        'Cholesterol is well-managed. Non-HDL and TG/HDL ratio are mildly high.',
-  'Thyroid':                 'TSH, FT3, and FT4 are all within normal range.',
-  'Urinalysis':              'All urinalysis markers are normal.',
-  'Hormones':                'Cortisol and DHEA-S are both within healthy ranges.',
-  'Hormones · Optional':     'No optional hormone values recorded yet.',
+  'Complete Blood Count':          'All blood cell counts are within range — no signs of anaemia or infection.',
+  'Inflammation & Iron Profile':   'hs-CRP is mildly elevated and ferritin is at the low end. Worth monitoring inflammation and iron status together.',
+  'Vitamins & Minerals':           'Vitamin D is below the optimal zone. B12 and folate look healthy. Electrolytes are within normal range.',
+  'Liver Function':                'Liver enzymes are all normal. The fatty liver index is marginally elevated.',
+  'Kidney Function':               'All kidney markers are within range — filtration rate is excellent.',
+  'Metabolic':                     'Glucose and HbA1c are good. HOMA-IR is slightly elevated, an early signal of insulin resistance.',
+  'Lipids & Cardiac':              'Cholesterol is well-managed. Non-HDL and TG/HDL ratio are mildly high.',
+  'Thyroid':                       'TSH, FT3, and FT4 are all within normal range.',
+  'Urinalysis':                    'All urinalysis markers are normal.',
+  'Hormones':                      'Cortisol and DHEA-S are both within healthy ranges.',
+  'Hormones · Optional':           'No optional hormone values recorded yet.',
+}
+
+// Defines subheadings within certain accordion panels.
+const SUBGROUPS: Record<string, { label: string; tests: string[] }[]> = {
+  'Inflammation & Iron Profile': [
+    { label: 'Inflammation', tests: ['hs-CRP', 'ESR'] },
+    { label: 'Iron Profile',  tests: ['Serum Iron', 'Ferritin', 'TIBC', 'Transferrin Saturation'] },
+  ],
+  'Vitamins & Minerals': [
+    { label: 'Vitamins', tests: ['Vitamin D (25-OH)', 'Folate (B9)', 'Vitamin B12'] },
+    { label: 'Minerals', tests: ['Sodium', 'Potassium', 'Chloride', 'Bicarbonate', 'Calcium', 'Magnesium'] },
+  ],
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -74,20 +95,18 @@ function DotGrid({ count, color }: { count: number; color: string }) {
 
 // ── Overview card ────────────────────────────────────────────────────────────
 
-function OverviewCard({ panel }: { panel: typeof mockData.bloodPanel }) {
-  let optimal = 0, inRange = 0, outOfRange = 0
-  for (const tests of Object.values(panel)) {
-    for (const result of Object.values(tests)) {
-      if (!result.value || result.status === undefined) continue
-      if (result.status === 'normal')     optimal++
-      else if (result.status === 'borderline') inRange++
-      else if (result.status === 'abnormal')   outOfRange++
-    }
+function OverviewCard({ biomarkers }: { biomarkers: BiomarkerStatus[] }) {
+  let inRange = 0, watch = 0, outOfRange = 0
+  for (const b of biomarkers) {
+    if (b.tier === 'unknown') continue
+    if (b.tier === 'optimal' || b.tier === 'normal') inRange++
+    else if (b.tier === 'watch') watch++
+    else outOfRange++ // out_of_range | critical
   }
 
   const cols = [
-    { label: 'Optimal',      count: optimal,    color: '#5A7A50' },
-    { label: 'In range',     count: inRange,    color: '#B8842A' },
+    { label: 'In range',     count: inRange,    color: '#5A7A50' },
+    { label: 'Watch',        count: watch,      color: '#B8842A' },
     { label: 'Out of range', count: outOfRange, color: '#A63030' },
   ]
 
@@ -138,9 +157,13 @@ const PARAM_DESC: Record<string, string> = {
   'hs-CRP':                 'High-sensitivity C-reactive protein — the most widely used marker of systemic inflammation. Even mildly elevated levels are linked to higher cardiovascular risk.',
   ESR:                      'Erythrocyte sedimentation rate — a broad measure of inflammation. Less specific than CRP but useful for monitoring inflammatory conditions over time.',
   Ferritin:                 'The primary iron storage protein. Low ferritin depletes iron reserves before anaemia appears; elevated levels can signal inflammation or iron overload.',
+  'Serum Iron':             'The amount of iron circulating in the blood. Low levels alongside high TIBC and low ferritin confirm iron deficiency.',
+  TIBC:                     'Total iron-binding capacity — the amount of transferrin available to carry iron. High values indicate the body is hungry for more iron.',
+  'Transferrin Saturation': 'The percentage of transferrin carrying iron (Serum Iron ÷ TIBC × 100). Below 20% suggests iron deficiency; above 50% suggests iron overload.',
   'Vitamin D (25-OH)':      'The storage form of vitamin D. Optimal levels support bone density, immune function, mood regulation, and reduced risk of several chronic diseases.',
   'Folate (B9)':            'Essential for DNA synthesis and red blood cell formation. Particularly important in pregnancy for neural tube development.',
   'Vitamin B12':            'Required for nerve function, DNA synthesis, and red blood cell production. Deficiency is common with plant-based diets or low stomach acid.',
+  Magnesium:                'A mineral involved in over 300 enzyme reactions — including energy production, muscle function, and sleep. Serum levels underestimate total-body status.',
   ALT:                      'Alanine aminotransferase — a liver enzyme that leaks into the bloodstream when liver cells are damaged. The most sensitive early marker of liver injury.',
   AST:                      'Aspartate aminotransferase — found in the liver, heart, and muscle. Elevated AST alongside ALT strongly suggests liver inflammation or damage.',
   GGT:                      'Gamma-glutamyl transferase — elevated by alcohol, fatty liver, and some medications. A sensitive but non-specific liver marker.',
@@ -160,7 +183,7 @@ const PARAM_DESC: Record<string, string> = {
   Bicarbonate:              "Reflects the body's acid-base balance. Low levels may indicate metabolic acidosis; high levels suggest alkalosis.",
   'Fasting Glucose':        'Blood sugar after an 8-hour fast — the standard screening test for diabetes and pre-diabetes. Optimal is below 90 mg/dL for long-term metabolic health.',
   'Fasting Insulin':        'The hormone that drives glucose into cells. Elevated fasting insulin often precedes high blood sugar and signals insulin resistance.',
-  'HOMA-IR2':               'A calculated index of insulin resistance using fasting glucose and insulin. Values above 2.0 suggest the early stages of insulin resistance.',
+  'HOMA-IR':                'A calculated index of insulin resistance using fasting glucose and insulin. Values above 2.0 suggest the early stages of insulin resistance.',
   HbA1c:                    'Glycated haemoglobin — reflects average blood sugar over the past 3 months. A key diagnostic criterion for diabetes and a reliable cardiovascular risk marker.',
   'Total Cholesterol':      'The sum of all cholesterol in the blood. Context matters — high HDL can push this number up without raising cardiovascular risk.',
   HDL:                      'High-density lipoprotein — often called "good" cholesterol. It transports cholesterol to the liver for removal and protects against heart disease.',
@@ -197,12 +220,28 @@ const PARAM_DESC: Record<string, string> = {
 
 // ── Parameter row (expandable) ───────────────────────────────────────────────
 
-function ParamRow({ name, result }: { name: string; result: BloodTestResult }) {
+function ParamRow({
+  name, result, bioStat,
+}: {
+  name: string
+  result: BloodTestResult
+  bioStat?: BiomarkerStatus
+}) {
   const [open, setOpen] = useState(false)
-  const trend    = bloodTrends[name]
-  const dotColor = result.status ? STATUS_COLOR[result.status] : '#6B6650'
+  const trend = bloodTrends[name]
+
+  // Interpretation tier overrides raw status when available.
+  const effectiveStatus: Status = bioStat
+    ? tierToStatus(bioStat.tier)
+    : (result.status ?? 'normal')
+  const dotColor = STATUS_COLOR[effectiveStatus]
   const hasRange = !!result.value && !isNaN(parseFloat(result.value))
-  const desc     = PARAM_DESC[name]
+  const desc = PARAM_DESC[name]
+
+  // Effective result for RangeBar — override status with interpreted value.
+  const displayResult: BloodTestResult = bioStat
+    ? { ...result, status: effectiveStatus }
+    : result
 
   const delta = trend && trend.points.length >= 2
     ? trend.points[trend.points.length - 1].value - trend.points[0].value
@@ -219,10 +258,14 @@ function ParamRow({ name, result }: { name: string; result: BloodTestResult }) {
           <p className="text-[13px] font-medium text-ink leading-tight">{name}</p>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
-          <span className="text-[13px] text-ink tabular-nums">
-            {result.value || '—'}{result.unit ? ` ${result.unit}` : ''}
+          <span className="text-[13px] tabular-nums font-medium" style={{ color: dotColor }}>
+            {result.value || '—'}
           </span>
-          <div className="w-[7px] h-[7px] rounded-full" style={{ background: dotColor }} />
+          {result.unit && (
+            <span className="text-[11px]" style={{ color: dotColor, opacity: 0.8 }}>
+              {result.unit}
+            </span>
+          )}
           {open
             ? <IconChevronUp size={13} strokeWidth={1.5} className="text-ink-2" />
             : <IconChevronDown size={13} strokeWidth={1.5} className="text-ink-2" />}
@@ -234,17 +277,7 @@ function ParamRow({ name, result }: { name: string; result: BloodTestResult }) {
         <div className="pb-4 space-y-3">
           {/* Range bar */}
           {hasRange && (
-            <div>
-              <RangeBar result={result} />
-              <div className="flex justify-between mt-1">
-                <span className="text-[10px] text-ink-2">ref {result.refRange}</span>
-                {result.status && (
-                  <span className="text-[10px] font-medium" style={{ color: dotColor }}>
-                    {result.status === 'normal' ? 'Optimal' : result.status === 'borderline' ? 'Borderline' : 'Abnormal'}
-                  </span>
-                )}
-              </div>
-            </div>
+            <RangeBar result={displayResult} bioStat={bioStat} />
           )}
 
           {/* Trend sparkline + delta */}
@@ -257,6 +290,30 @@ function ParamRow({ name, result }: { name: string; result: BloodTestResult }) {
                 </span>
               )}
             </div>
+          )}
+
+          {/* Clinical note from biomarker definition */}
+          {bioStat?.note && (
+            <p className="text-[11px] text-ink-2 italic leading-relaxed border-l-2 border-accent pl-2">
+              {bioStat.note}
+            </p>
+          )}
+
+          {/* Refer flag */}
+          {bioStat?.refer && (
+            <div className="flex items-start gap-1.5 rounded-lg px-3 py-2" style={{ background: '#FEF2F2' }}>
+              <IconAlertCircle size={13} strokeWidth={1.5} className="shrink-0 mt-0.5" style={{ color: '#A63030' }} />
+              <p className="text-[11px] leading-relaxed" style={{ color: '#A63030' }}>
+                This result warrants clinical follow-up — please discuss with your doctor.
+              </p>
+            </div>
+          )}
+
+          {/* Inflammation confounder flag (ferritin) */}
+          {bioStat?.flags.includes('iron_status_uncertain_inflammation') && (
+            <p className="text-[11px] text-ink-2 italic leading-relaxed border-l-2 border-accent pl-2">
+              hs-CRP is elevated — ferritin may appear normal while masking iron deficiency.
+            </p>
           )}
 
           {/* Description */}
@@ -274,19 +331,34 @@ function ParamRow({ name, result }: { name: string; result: BloodTestResult }) {
 function SystemAccordion({
   name,
   tests,
+  sysStat,
+  bioMarkerMap,
 }: {
   name: string
   tests: Record<string, BloodTestResult>
+  sysStat?: LabSysStatus
+  bioMarkerMap: Map<string, BiomarkerStatus>
 }) {
   const [open, setOpen] = useState(false)
 
   const activeTests = Object.entries(tests).filter(([, r]) => r.value !== '')
   if (activeTests.length === 0) return null
 
+  // Derive dial score and color from interpretation if available; fall back to raw status.
   const activeMap = Object.fromEntries(activeTests)
-  const status  = aggregateStatus(activeMap)
-  const score   = healthScore(activeMap)
-  const color   = STATUS_COLOR[status]
+  const fallbackStatus = aggregateStatus(activeMap)
+  const fallbackScore  = healthScore(activeMap)
+
+  const displayLabel = sysStat?.label ?? STATUS_LABEL[fallbackStatus]
+  const displayColor = sysStat
+    ? (SYS_LABEL_COLOR[sysStat.label] ?? '#5A7A50')
+    : STATUS_COLOR[fallbackStatus]
+  const dialStatus: Status = sysStat
+    ? (sysStat.label === 'Optimal' ? 'normal' : sysStat.label === 'Monitor' ? 'borderline' : 'abnormal')
+    : fallbackStatus
+  const dialPct = sysStat
+    ? (sysStat.label === 'Optimal' ? 1 : sysStat.label === 'Monitor' ? 0.6 : 0.3)
+    : fallbackScore
 
   return (
     <div className="bg-card rounded-2xl border border-border shadow-card mb-3 overflow-hidden">
@@ -295,11 +367,11 @@ function SystemAccordion({
         onClick={() => setOpen(o => !o)}
         className="w-full flex items-center gap-4 px-5 py-4 text-left cursor-pointer"
       >
-        <HealthDial pct={score} status={status} />
+        <HealthDial pct={dialPct} status={dialStatus} />
         <div className="flex-1 min-w-0">
           <p className="text-[15px] font-medium text-ink leading-snug">{name}</p>
-          <p className="text-[12px] mt-0.5 font-medium" style={{ color }}>
-            {STATUS_LABEL[status]}
+          <p className="text-[12px] mt-0.5 font-medium" style={{ color: displayColor }}>
+            {displayLabel}
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -320,9 +392,45 @@ function SystemAccordion({
               {NARRATIVES[name]}
             </p>
           )}
-          {activeTests.map(([testName, result]) => (
-            <ParamRow key={testName} name={testName} result={result} />
-          ))}
+          {sysStat?.refer && (
+            <div className="flex items-start gap-1.5 rounded-lg px-3 py-2 mt-3 mb-1" style={{ background: '#FEF2F2' }}>
+              <IconAlertCircle size={13} strokeWidth={1.5} className="shrink-0 mt-0.5" style={{ color: '#A63030' }} />
+              <p className="text-[11px] leading-relaxed" style={{ color: '#A63030' }}>
+                One or more markers in this panel warrant clinical review.
+              </p>
+            </div>
+          )}
+          {SUBGROUPS[name]
+            ? SUBGROUPS[name].map(sg => {
+                const sgTests = sg.tests
+                  .map(t => activeTests.find(([n]) => n === t))
+                  .filter((x): x is [string, BloodTestResult] => !!x)
+                if (sgTests.length === 0) return null
+                return (
+                  <div key={sg.label}>
+                    <p className="text-[10px] tracking-[.07em] uppercase text-ink-2 pt-3 pb-1.5 border-b border-border mb-0.5">
+                      {sg.label}
+                    </p>
+                    {sgTests.map(([testName, result]) => (
+                      <ParamRow
+                        key={testName}
+                        name={testName}
+                        result={result}
+                        bioStat={bioMarkerMap.get(testName)}
+                      />
+                    ))}
+                  </div>
+                )
+              })
+            : activeTests.map(([testName, result]) => (
+                <ParamRow
+                  key={testName}
+                  name={testName}
+                  result={result}
+                  bioStat={bioMarkerMap.get(testName)}
+                />
+              ))
+          }
         </div>
       )}
     </div>
@@ -332,7 +440,15 @@ function SystemAccordion({
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 export default function LabsPage() {
-  const { bloodPanel } = mockData
+  const { bloodPanel, questionnaire } = mockData
+  const labInterp = interpretPanel(bloodPanel, questionnaire.history)
+
+  const bioMarkerMap = new Map<string, BiomarkerStatus>(
+    labInterp.biomarkers.map(b => [b.name, b])
+  )
+  const sysMap = new Map<string, LabSysStatus>(
+    labInterp.systems.map(s => [s.system, s])
+  )
 
   return (
     <>
@@ -346,13 +462,23 @@ export default function LabsPage() {
           Overview of your labs with system statuses, range parameters and trend sparklines.
         </p>
 
-        <OverviewCard panel={bloodPanel} />
+        <OverviewCard biomarkers={labInterp.biomarkers} />
 
         <p className="text-[11px] tracking-[.07em] uppercase text-ink-2 mb-3">System breakdown</p>
 
-        {Object.entries(bloodPanel).map(([name, tests]) => (
-          <SystemAccordion key={name} name={name} tests={tests} />
-        ))}
+        {Object.entries(bloodPanel).map(([name, tests]) => {
+          const systemKey = GROUP_TO_SYSTEM[name]
+          const sysStat   = systemKey ? sysMap.get(systemKey) : undefined
+          return (
+            <SystemAccordion
+              key={name}
+              name={name}
+              tests={tests}
+              sysStat={sysStat}
+              bioMarkerMap={bioMarkerMap}
+            />
+          )
+        })}
 
         {/* Resubmit */}
         <div className="mt-6 pt-6 border-t border-border">

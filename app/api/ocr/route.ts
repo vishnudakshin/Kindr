@@ -1,40 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/messages'
 import { NextRequest, NextResponse } from 'next/server'
-
-// Exact group + test names that the form expects
-const PANEL_GROUPS: Record<string, string[]> = {
-  'Complete Blood Count': [
-    'Haemoglobin', 'Haematocrit', 'MCV', 'MCH', 'MCHC', 'RDW',
-    'White Blood Cells', 'Neutrophils', 'Lymphocytes', 'Monocytes',
-    'Eosinophils', 'Basophils', 'Platelets', 'NLR',
-  ],
-  'Acute Phase Reactants': ['hs-CRP', 'ESR', 'Ferritin'],
-  'Vitamins': ['Vitamin D (25-OH)', 'Folate (B9)', 'Vitamin B12'],
-  'Liver Function': [
-    'ALT', 'AST', 'GGT', 'ALP', 'Bilirubin', 'Total Protein',
-    'Albumin', 'Globulin', 'Fatty Liver Index',
-  ],
-  'Kidney Function': [
-    'Creatinine', 'eGFR', 'BUN/Urea', 'Sodium', 'Potassium',
-    'Chloride', 'Calcium', 'Bicarbonate',
-  ],
-  'Metabolic': ['Fasting Glucose', 'Fasting Insulin', 'HOMA-IR2', 'HbA1c'],
-  'Lipids & Cardiac': [
-    'Total Cholesterol', 'HDL', 'LDL', 'Triglycerides', 'Non-HDL',
-    'TC/HDL Ratio', 'TG/HDL Ratio', 'ApoB', 'Lp(a)',
-  ],
-  'Thyroid': ['TSH', 'FT3', 'FT4'],
-  'Urinalysis': [
-    'Colour & Transparency', 'Protein', 'Glucose', 'Ketones', 'pH',
-    'RBC', 'Pus Cells', 'Epithelial Cells', 'Casts', 'Crystals', 'Bacteria',
-  ],
-  'Hormones': ['Morning Cortisol', 'DHEA-S'],
-  'Hormones · Optional': [
-    'SHBG', 'Total Testosterone (men)', 'Free Testosterone (men)',
-    'Estradiol (women)', 'FSH (women)', 'LH (women)',
-  ],
-}
+import { PANEL_GROUPS } from '@/lib/lab-config'
 
 const SUPPORTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'] as const
 type ImageMediaType = (typeof SUPPORTED_IMAGE_TYPES)[number]

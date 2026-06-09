@@ -25,16 +25,6 @@ function markerLabel(sys: BodySystem): string {
   return `${n} marker${n !== 1 ? 's' : ''} · ${d === 0 ? 'all in range' : `${d} deficient`}`
 }
 
-/** Push card y-positions down until no two overlap. */
-function deoverlap(ys: number[]): number[] {
-  const res = [...ys]
-  for (let i = 1; i < res.length; i++) {
-    const minY = res[i - 1] + CARD_H + 8
-    if (res[i] < minY) res[i] = minY
-  }
-  return res
-}
-
 // ── Label card ────────────────────────────────────────────────────────────────
 
 function LabelCard({
@@ -140,26 +130,21 @@ export function BodyModel() {
   const leftSys  = bodySystems.filter(s => s.side === 'left')
   const rightSys = bodySystems.filter(s => s.side === 'right')
 
-  // Left cards: de-overlapped so adjacent cards don't collide.
-  // Right cards: centre y locked to marker y so horizontal lines attach flush.
-  const leftCardTops  = deoverlap(leftSys.map(s => fig.top + fig.h * (s.anchor.y / 100) - CARD_H / 2))
+  // Both sides: card centre locked to marker y → all connectors are horizontal.
+  const leftCardTops  = leftSys.map(s => fig.top + fig.h * (s.anchor.y / 100) - CARD_H / 2)
   const rightCardTops = rightSys.map(s => fig.top + fig.h * (s.anchor.y / 100) - CARD_H / 2)
 
-  // LEFT: diagonal from card-right-edge centre to marker (appears horizontal
-  //        because cards are positioned near their anchor y).
-  // RIGHT: strictly horizontal at marker y, from marker x to card left edge.
   const cardRightX = fig.left - CARD_GAP
   const cardLeftX  = fig.left + fig.w + CARD_GAP
 
-  function leftLine(sys: BodySystem, cardTop: number): string {
+  // Horizontal at marker y for both sides.
+  function leftLine(sys: BodySystem): string {
     const { x: mx, y: my } = px(sys)
-    const cy = cardTop + CARD_H / 2
-    return `${cardRightX},${cy} ${mx},${my}`
+    return `${cardRightX},${my} ${mx},${my}`
   }
 
-  function rightLine(sys: BodySystem, cardTop: number): string {
+  function rightLine(sys: BodySystem): string {
     const { x: mx, y: my } = px(sys)
-    // Horizontal at marker y — matches the visual style of the left-side lines
     return `${mx},${my} ${cardLeftX},${my}`
   }
 
@@ -242,10 +227,10 @@ export function BodyModel() {
             height={minH || 580}
             style={{ overflow: 'visible' }}
           >
-            {leftSys.map((sys, i) => (
+            {leftSys.map(sys => (
               <polyline
                 key={sys.id}
-                points={leftLine(sys, leftCardTops[i])}
+                points={leftLine(sys)}
                 fill="none"
                 stroke={STATUS_META[sys.status].color}
                 strokeWidth={1.3}
@@ -253,10 +238,10 @@ export function BodyModel() {
                 strokeLinejoin="round"
               />
             ))}
-            {rightSys.map((sys, i) => (
+            {rightSys.map(sys => (
               <polyline
                 key={sys.id}
-                points={rightLine(sys, rightCardTops[i])}
+                points={rightLine(sys)}
                 fill="none"
                 stroke={STATUS_META[sys.status].color}
                 strokeWidth={1.3}

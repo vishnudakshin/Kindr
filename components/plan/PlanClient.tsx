@@ -11,9 +11,9 @@ type PlanCategory = 'Nourish' | 'Calm' | 'Move'
 // ── Category colours ──────────────────────────────────────────────────────────
 
 const CAT_STYLE: Record<PlanCategory, { bg: string; text: string }> = {
-  Nourish: { bg: '#E6F2DE', text: '#4A7A32' },
-  Calm:    { bg: '#E8E4F0', text: '#5A4880' },
-  Move:    { bg: '#DDE9F5', text: '#2A5A80' },
+  Nourish: { bg: '#E6F2DE', text: '#4A7A32' },  // sage green
+  Calm:    { bg: '#E8E4F0', text: '#5A4880' },  // slate/lavender
+  Move:    { bg: '#F3E6CD', text: '#7e5a1f' },  // amber/ochre
 }
 
 const FILTERS = ['All', 'Nourish', 'Calm', 'Move'] as const

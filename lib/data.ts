@@ -3,7 +3,8 @@ import { computeAll, scoreQuestionnaire } from './scoring'
 import { interpretPanel, type SystemStatus as InterpSysStatus, type BiomarkerStatus } from './lab-interpretation'
 import { buildFindings, type FindingsResult, type Finding } from './findings'
 import { buildReport, type KindrReport } from './report'
-export type { FindingsResult, Finding, KindrReport }
+import { buildDailyPlan, type DailyPlan, type PlanTask } from './plan'
+export type { FindingsResult, Finding, KindrReport, DailyPlan, PlanTask }
 
 // ── Cycle day generator ────────────────────────────────────────────────────────
 
@@ -440,3 +441,6 @@ export const report: KindrReport = buildReport(findings, _labInterp, {
   generatedAt: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
   reassessmentDays: 90,
 })
+
+// ── Plan layer (Layer 5) ──────────────────────────────────────────────────────
+export const dailyPlan: DailyPlan = buildDailyPlan(findings)

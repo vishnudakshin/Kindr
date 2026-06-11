@@ -13,9 +13,9 @@ const P: Record<Palette, { dot: string; bg: string; edge: string; text: string }
 }
 
 const PILLAR_STYLE: Record<Pillar, { bg: string; text: string; edge: string }> = {
-  Nourish:  { bg: '#E6F2DE', text: '#4A7A32', edge: '#C6DFB8' },
-  Move:     { bg: '#DDE9F5', text: '#2A5A80', edge: '#B8D3EC' },
-  Calm:     { bg: '#F5EFE0', text: '#7A6A52', edge: '#E2D8C4' },
+  Nourish:  { bg: '#E6F2DE', text: '#4A7A32', edge: '#C6DFB8' },  // sage green
+  Move:     { bg: '#F3E6CD', text: '#7e5a1f', edge: '#E4CFA4' },  // amber/ochre
+  Calm:     { bg: '#E8E4F0', text: '#5A4880', edge: '#D4CCE8' },  // slate/lavender
   Clinical: { bg: '#F1DDD4', text: '#7d4538', edge: '#E3C2B4' },
 }
 

@@ -22,7 +22,6 @@ export interface BiomarkerStatus {
   unit: string
   tier: BiomarkerTier
   refRange: NumericRange | null
-  optimalRange: NumericRange | null
   direction: Direction
   flags: string[]
   refer: boolean
@@ -119,14 +118,67 @@ function findPanelValue(panel: BloodPanel, name: string): number | null {
   return null
 }
 
-// HOMA-IR = Fasting Glucose (mg/dL) × Fasting Insulin (µU/mL) / 405.
-// (If your lab reports glucose in mmol/L, the divisor is 22.5 instead — this assumes mg/dL.)
-export function deriveHomaIr(panel: BloodPanel): number | null {
-  const glucose = findPanelValue(panel, 'Fasting Glucose')
-  const insulin = findPanelValue(panel, 'Fasting Insulin')
-  if (glucose === null || insulin === null) return null
-  return (glucose * insulin) / 405
+// ── derived indices (computed, not OCR-extracted) ────────────────────────
+// Each is injected as a 'derived' biomarker so it gets a tier and feeds the system rollup. When the
+// OCR also reports one, the computed value is preferred (exact and consistent).
+export interface Derivation {
+  name: string
+  group: string // OCR group used only as a system fallback when injecting
+  compute: (panel: BloodPanel, ctx: PatientContext) => number | null
 }
+
+export const DERIVATIONS: Derivation[] = [
+  { // HOMA-IR = Fasting Glucose (mg/dL) × Fasting Insulin (µU/mL) / 405. (mmol/L → divide by 22.5.)
+    name: 'HOMA-IR', group: 'Metabolic',
+    compute: (p) => {
+      const g = findPanelValue(p, 'Fasting Glucose'), i = findPanelValue(p, 'Fasting Insulin')
+      return g !== null && i !== null ? (g * i) / 405 : null
+    },
+  },
+  { // FIB-4 = (Age × AST) / (Platelets × √ALT)
+    name: 'FIB-4', group: 'Liver Function',
+    compute: (p, ctx) => {
+      const ast = findPanelValue(p, 'AST'), alt = findPanelValue(p, 'ALT'), plt = findPanelValue(p, 'Platelets')
+      if (ctx.age === null || ast === null || alt === null || !plt || alt <= 0) return null
+      return (ctx.age * ast) / (plt * Math.sqrt(alt))
+    },
+  },
+  { // TyG index = ln(Triglycerides × Fasting Glucose / 2)
+    name: 'TyG Index', group: 'Metabolic',
+    compute: (p) => {
+      const tg = findPanelValue(p, 'Triglycerides'), g = findPanelValue(p, 'Fasting Glucose')
+      return tg && g && tg > 0 && g > 0 ? Math.log((tg * g) / 2) : null
+    },
+  },
+  { // Remnant cholesterol = Total Cholesterol − HDL − LDL
+    name: 'Remnant Cholesterol', group: 'Lipids & Cardiac',
+    compute: (p) => {
+      const tc = findPanelValue(p, 'Total Cholesterol'), hdl = findPanelValue(p, 'HDL'), ldl = findPanelValue(p, 'LDL')
+      return tc !== null && hdl !== null && ldl !== null ? tc - hdl - ldl : null
+    },
+  },
+  { // A/G ratio = Albumin / Globulin
+    name: 'A/G Ratio', group: 'Liver Function',
+    compute: (p) => {
+      const alb = findPanelValue(p, 'Albumin'), glob = findPanelValue(p, 'Globulin')
+      return alb !== null && glob ? alb / glob : null
+    },
+  },
+  { // Albumin-corrected calcium = Calcium + 0.8 × (4.0 − Albumin)
+    name: 'Corrected Calcium', group: 'Vitamins & Minerals',
+    compute: (p) => {
+      const ca = findPanelValue(p, 'Calcium'), alb = findPanelValue(p, 'Albumin')
+      return ca !== null && alb !== null ? ca + 0.8 * (4.0 - alb) : null
+    },
+  },
+  { // LH/FSH ratio (women) — PCOS support
+    name: 'LH/FSH Ratio', group: 'Hormones · Optional',
+    compute: (p) => {
+      const lh = findPanelValue(p, 'LH (women)'), fsh = findPanelValue(p, 'FSH (women)')
+      return lh !== null && fsh ? lh / fsh : null
+    },
+  },
+]
 
 // ── single biomarker ────────────────────────────────────────────────────
 export function interpretBiomarker(
@@ -138,8 +190,7 @@ export function interpretBiomarker(
   if (!def) {
     return {
       name, system, value: result?.value ?? null, unit: result?.unit ?? '', tier: 'unknown',
-      refRange: null, optimalRange: null, direction: 'context',
-      flags: ['not_in_registry'], refer: false, crossLinks: [],
+      refRange: null, direction: 'context', flags: ['not_in_registry'], refer: false, crossLinks: [],
     }
   }
 
@@ -160,8 +211,7 @@ export function interpretBiomarker(
     else if (isNorm) tier = 'normal'
     else tier = 'normal'
     return {
-      name, system, value: result?.value ?? null, unit: def.unit, tier,
-      refRange: null, optimalRange: null,
+      name, system, value: result?.value ?? null, unit: def.unit, tier, refRange: null,
       direction: def.direction, flags, refer, crossLinks: def.crossLinks ?? [], note: def.note,
     }
   }
@@ -169,8 +219,7 @@ export function interpretBiomarker(
   const value = parseNumeric(result?.value)
   if (value === null) {
     return {
-      name, system, value: result?.value ?? null, unit: def.unit, tier: 'unknown',
-      refRange: ref, optimalRange: optimal,
+      name, system, value: result?.value ?? null, unit: def.unit, tier: 'unknown', refRange: ref,
       direction: def.direction, flags: ['unparseable_value'], refer: false,
       crossLinks: def.crossLinks ?? [], note: def.note,
     }
@@ -179,8 +228,7 @@ export function interpretBiomarker(
   // Context-only marker with no fixed range (e.g. estradiol/FSH/LH): can't classify alone.
   if (def.direction === 'context' && !ref) {
     return {
-      name, system, value, unit: def.unit, tier: 'unknown',
-      refRange: null, optimalRange: null, direction: def.direction,
+      name, system, value, unit: def.unit, tier: 'unknown', refRange: null, direction: def.direction,
       flags: ['needs_clinical_context'], refer: false, crossLinks: def.crossLinks ?? [], note: def.note,
     }
   }
@@ -218,9 +266,8 @@ export function interpretBiomarker(
   if (def.direction === 'context') flags.push('needs_clinical_context')
 
   return {
-    name, system, value, unit: def.unit, tier,
-    refRange: ref, optimalRange: optimal,
-    direction: def.direction, flags, refer, crossLinks: def.crossLinks ?? [], note: def.note,
+    name, system, value, unit: def.unit, tier, refRange: ref, direction: def.direction,
+    flags, refer, crossLinks: def.crossLinks ?? [], note: def.note,
   }
 }
 
@@ -238,32 +285,37 @@ export function interpretPanel(panel: BloodPanel, history: HistoryResponses): La
     }
   }
 
-  // HOMA-IR is computed from fasting glucose + insulin when both are present (more reliable than a
-  // transcribed value); falls back to any OCR-extracted HOMA-IR otherwise.
-  const homaIr = deriveHomaIr(panel)
-  const homaResult: BloodTestResult | null =
-    homaIr === null ? null : { value: String(round2(homaIr)), unit: 'index', refRange: '' }
+  // Compute derived indices (HOMA-IR, FIB-4, TyG, remnant cholesterol, A/G, corrected calcium).
+  const derived = new Map<string, number>()
+  for (const d of DERIVATIONS) {
+    const v = d.compute(panel, ctx)
+    if (v !== null && Number.isFinite(v)) derived.set(d.name, round2(v))
+  }
+  const derivedResult = (name: string): BloodTestResult => ({ value: String(derived.get(name)), unit: '', refRange: '' })
 
   const biomarkers: BiomarkerStatus[] = []
-  let sawHoma = false
+  const seen = new Set<string>()
   for (const group of Object.keys(panel)) {
     const tests = panel[group] ?? {}
     for (const testName of Object.keys(tests)) {
-      if (testName === 'HOMA-IR') {
-        sawHoma = true
-        const st = interpretBiomarker('HOMA-IR', homaResult ?? tests[testName], ctx, group)
-        if (homaResult) st.flags.push('derived')
+      seen.add(testName)
+      if (derived.has(testName)) {
+        // OCR also reported a derived marker — prefer the computed value.
+        const st = interpretBiomarker(testName, derivedResult(testName), ctx, group)
+        st.flags.push('derived')
         biomarkers.push(st)
       } else {
         biomarkers.push(interpretBiomarker(testName, tests[testName], ctx, group))
       }
     }
   }
-  // Derive HOMA-IR even if the lab didn't list it, as long as glucose + insulin are present.
-  if (!sawHoma && homaResult) {
-    const st = interpretBiomarker('HOMA-IR', homaResult, ctx, 'Metabolic')
-    st.flags.push('derived')
-    biomarkers.push(st)
+  // Inject derived markers the panel did not list.
+  for (const d of DERIVATIONS) {
+    if (derived.has(d.name) && !seen.has(d.name)) {
+      const st = interpretBiomarker(d.name, derivedResult(d.name), ctx, d.group)
+      st.flags.push('derived')
+      biomarkers.push(st)
+    }
   }
 
   return {

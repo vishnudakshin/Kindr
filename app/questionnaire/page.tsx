@@ -289,6 +289,59 @@ function WaistBlock({ history, setHistory }: { history: HistoryResponses; setHis
   )
 }
 
+function BloodPressureBlock({ history, setHistory }: { history: HistoryResponses; setHistory: (h: HistoryResponses) => void }) {
+  const sys = history.bpSystolic ?? 0
+  const dia = history.bpDiastolic ?? 0
+  const both = sys > 0 && dia > 0
+
+  function category(): { label: string; color: string } | null {
+    if (!both) return null
+    if (sys < 120 && dia < 80)  return { label: 'Normal',            color: '#5A7A50' }
+    if (sys < 130 && dia < 80)  return { label: 'Elevated',          color: '#B8842A' }
+    if (sys < 140 || dia < 90)  return { label: 'High — Stage 1',    color: '#B8842A' }
+    return                             { label: 'High — Stage 2',    color: '#A63030' }
+  }
+
+  const cat = category()
+
+  return (
+    <QBlock question="Resting blood pressure" hint="After 5 minutes seated and at rest. Your most recent reading is fine.">
+      <div className="flex items-end gap-3 mt-1">
+        <div className="flex flex-col gap-1.5">
+          <span className="text-[11px] uppercase tracking-[.05em] text-ink-2">Systolic</span>
+          <div className="flex items-center gap-1.5">
+            <input
+              type="number" placeholder="120" min={60} max={220}
+              value={history.bpSystolic ?? ''}
+              onChange={e => setHistory({ ...history, bpSystolic: e.target.value ? parseFloat(e.target.value) : null })}
+              className="border border-border rounded-[10px] px-3 py-2.5 text-[18px] font-medium text-ink bg-card w-24 outline-none focus:border-ink transition-colors"
+            />
+          </div>
+        </div>
+        <span className="text-[22px] text-ink-2 pb-2.5 select-none">/</span>
+        <div className="flex flex-col gap-1.5">
+          <span className="text-[11px] uppercase tracking-[.05em] text-ink-2">Diastolic</span>
+          <div className="flex items-center gap-1.5">
+            <input
+              type="number" placeholder="80" min={40} max={140}
+              value={history.bpDiastolic ?? ''}
+              onChange={e => setHistory({ ...history, bpDiastolic: e.target.value ? parseFloat(e.target.value) : null })}
+              className="border border-border rounded-[10px] px-3 py-2.5 text-[18px] font-medium text-ink bg-card w-24 outline-none focus:border-ink transition-colors"
+            />
+          </div>
+        </div>
+        <span className="text-[13px] text-ink-2 pb-3">mmHg</span>
+      </div>
+      {both && (
+        <div className="flex items-center gap-2 mt-2">
+          <span className="font-medium text-[13px] text-ink">{sys}/{dia}</span>
+          {cat && <span className="text-[12px] font-medium" style={{ color: cat.color }}>{cat.label}</span>}
+        </div>
+      )}
+    </QBlock>
+  )
+}
+
 function Step1History({ history, setHistory }: { history: HistoryResponses; setHistory: (h: HistoryResponses) => void }) {
   const bmi = calcBMI(history)
   const cat = bmi !== null ? bmiCategory(bmi) : null
@@ -421,6 +474,9 @@ function Step1History({ history, setHistory }: { history: HistoryResponses; setH
 
       {/* Waist circumference */}
       <WaistBlock history={history} setHistory={setHistory} />
+
+      {/* Blood pressure */}
+      <BloodPressureBlock history={history} setHistory={setHistory} />
 
       {/* Medical conditions */}
       <QBlock question="Do you have any currently diagnosed medical conditions?" hint="Select all that apply">
@@ -836,6 +892,7 @@ export default function QuestionnairePage() {
   const [history,   setHistory]   = useState<HistoryResponses>({
     age: null, sex: '', ethnicity: 'south_asian', dietaryPreferences: [], unit: 'metric',
     heightCm: '', weightKg: '', heightFt: '', heightIn: '', weightLbs: '', waistCm: '',
+    bpSystolic: null, bpDiastolic: null,
     conditions: ['None'], conditionsOther: '',
     medications: 'None', medicationsText: '',
     allergies: 'None known', allergiesText: '',

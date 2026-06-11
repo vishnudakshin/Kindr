@@ -20,9 +20,8 @@ import type { Ethnicity } from './types'
 export type Sex = 'male' | 'female' | 'unknown'
 
 export type BodySystem =
-  | 'Thyroid' | 'Liver' | 'Kidney' | 'Heart & Lipids'
-  | 'Vitamins & Minerals' | 'Blood' | 'Metabolic' | 'Hormones'
-  | 'Inflammation & Iron'
+  | 'Thyroid' | 'Liver' | 'Kidney' | 'Heart'
+  | 'Vitamins' | 'Blood & immune' | 'Metabolic' | 'Hormones'
 
 export type Direction =
   | 'high_bad'    // higher = worse (hs-CRP, glucose, LDL…)
@@ -58,29 +57,29 @@ export interface BiomarkerDef {
 
 // Fallback system for any extracted marker not in the registry, by its OCR group.
 export const GROUP_TO_SYSTEM: Record<string, BodySystem> = {
-  'Complete Blood Count':       'Blood',
-  'Inflammation & Iron Profile':'Inflammation & Iron',
-  'Vitamins & Minerals':        'Vitamins & Minerals',
-  'Liver Function':             'Liver',
-  'Kidney Function':            'Kidney',
-  'Urinalysis':                 'Kidney',
-  'Metabolic':                  'Metabolic',
-  'Lipids & Cardiac':           'Heart & Lipids',
-  'Thyroid':                    'Thyroid',
-  'Hormones':                   'Hormones',
-  'Hormones · Optional':        'Hormones',
+  'Complete Blood Count': 'Blood & immune',
+  'Inflammation & Iron Profile': 'Blood & immune',
+  'Vitamins & Minerals': 'Vitamins',
+  'Liver Function': 'Liver',
+  'Kidney Function': 'Kidney',
+  'Urinalysis': 'Kidney',
+  'Metabolic': 'Metabolic',
+  'Lipids & Cardiac': 'Heart',
+  'Thyroid': 'Thyroid',
+  'Stress Hormones': 'Hormones',
+  'Hormones · Optional': 'Hormones',
+  'Allergy Panel - IgE': 'Blood & immune',
 }
 
-// Canonical panel schema — imported by app/api/ocr/route.ts so extraction and registry stay in sync.
+// OCR schema — matches the current panel. Import into app/api/ocr/route.ts so the extraction schema
+// and registry stay in lock-step. Derived indices (FIB-4, TyG, etc.) are NOT here — they are computed.
 export const PANEL_GROUPS: Record<string, string[]> = {
   'Complete Blood Count': [
     'Haemoglobin', 'Haematocrit', 'MCV', 'MCH', 'MCHC', 'RDW',
-    'White Blood Cells', 'Neutrophils', 'Lymphocytes', 'Monocytes',
-    'Eosinophils', 'Basophils', 'Platelets', 'NLR',
+    'White Blood Cells', 'Absolute Neutrophil Count', 'Neutrophils', 'Lymphocytes',
+    'Monocytes', 'Eosinophils', 'Basophils', 'Platelets', 'Reticulocyte', 'NLR',
   ],
-  'Inflammation & Iron Profile': [
-    'hs-CRP', 'ESR', 'Ferritin', 'Serum Iron', 'TIBC', 'Transferrin Saturation',
-  ],
+  'Inflammation & Iron Profile': ['ESR', 'Ferritin', 'Serum Iron', 'TIBC', 'Transferrin Saturation'],
   'Vitamins & Minerals': [
     'Vitamin D (25-OH)', 'Folate (B9)', 'Vitamin B12', 'Magnesium',
     'Sodium', 'Potassium', 'Chloride', 'Bicarbonate', 'Calcium',
@@ -89,22 +88,23 @@ export const PANEL_GROUPS: Record<string, string[]> = {
     'ALT', 'AST', 'GGT', 'ALP', 'Bilirubin', 'Total Protein',
     'Albumin', 'Globulin', 'Fatty Liver Index',
   ],
-  'Kidney Function': ['Creatinine', 'eGFR', 'BUN/Urea'],
+  'Kidney Function': ['Creatinine', 'eGFR', 'Urea', 'Uric Acid', 'BUN/Creatinine Ratio'],
   'Metabolic': ['Fasting Glucose', 'Fasting Insulin', 'HOMA-IR', 'HbA1c'],
   'Lipids & Cardiac': [
     'Total Cholesterol', 'HDL', 'LDL', 'Triglycerides', 'Non-HDL',
-    'TC/HDL Ratio', 'TG/HDL Ratio', 'ApoB', 'Lp(a)',
+    'TC/HDL Ratio', 'TG/HDL Ratio', 'ApoB', 'Lp(a)', 'hs-CRP',
   ],
   'Thyroid': ['TSH', 'FT3', 'FT4'],
   'Urinalysis': [
     'Colour & Transparency', 'Protein', 'Glucose', 'Ketones', 'pH',
-    'RBC', 'Pus Cells', 'Epithelial Cells', 'Casts', 'Crystals', 'Bacteria',
+    'RBC', 'Pus Cells', 'Casts', 'Crystals',
   ],
-  'Hormones': ['Morning Cortisol', 'DHEA-S'],
+  'Stress Hormones': ['Morning Cortisol', 'DHEA-S'],
   'Hormones · Optional': [
     'SHBG', 'Total Testosterone (men)', 'Free Testosterone (men)',
     'Estradiol (women)', 'FSH (women)', 'LH (women)',
   ],
+  'Allergy Panel - IgE': ['Total IgE'],
 }
 
 // age-dependent helpers
@@ -115,74 +115,70 @@ const esrUpper = (ctx: PatientContext): NumericRange => {
 }
 
 export const BIOMARKERS: Record<string, BiomarkerDef> = {
-  // ── Complete Blood Count → Blood ──────────────────────────────────────────
+  // ── Complete Blood Count → Blood & immune ──────────────────────────────
   'Haemoglobin': {
-    unit: 'g/dL', system: 'Blood', direction: 'low_bad',
+    unit: 'g/dL', system: 'Blood & immune', direction: 'low_bad',
     ref: { male: { low: 13.0, high: 17.0 }, female: { low: 12.0, high: 15.5 } },
     critical: { low: 8 }, crossLinks: ['fatigue', 'activity', 'cognition'],
   },
   'Haematocrit': {
-    unit: '%', system: 'Blood', direction: 'low_bad',
+    unit: '%', system: 'Blood & immune', direction: 'low_bad',
     ref: { male: { low: 40, high: 50 }, female: { low: 36, high: 46 } }, crossLinks: ['fatigue'],
   },
-  'MCV': { unit: 'fL', system: 'Blood', direction: 'two_sided', ref: { low: 80, high: 100 },
+  'MCV': { unit: 'fL', system: 'Blood & immune', direction: 'two_sided', ref: { low: 80, high: 100 },
     note: 'Low → consider iron deficiency; high → consider B12/folate deficiency.' },
-  'MCH': { unit: 'pg', system: 'Blood', direction: 'two_sided', ref: { low: 27, high: 33 } },
-  'MCHC': { unit: 'g/dL', system: 'Blood', direction: 'two_sided', ref: { low: 32, high: 36 } },
-  'RDW': { unit: '%', system: 'Blood', direction: 'high_bad', ref: { high: 14.5 },
+  'MCH': { unit: 'pg', system: 'Blood & immune', direction: 'two_sided', ref: { low: 27, high: 33 } },
+  'MCHC': { unit: 'g/dL', system: 'Blood & immune', direction: 'two_sided', ref: { low: 32, high: 36 } },
+  'RDW': { unit: '%', system: 'Blood & immune', direction: 'high_bad', ref: { high: 14.5 },
     note: 'Elevated RDW can be an early sign of mixed nutritional deficiency.' },
-  'White Blood Cells': { unit: '10^9/L', system: 'Blood', direction: 'two_sided',
+  'White Blood Cells': { unit: '10^9/L', system: 'Blood & immune', direction: 'two_sided',
     ref: { low: 4.0, high: 11.0 }, critical: { low: 2.0, high: 30 }, crossLinks: ['illness'] },
-  'Neutrophils': { unit: '%', system: 'Blood', direction: 'two_sided', ref: { low: 40, high: 75 },
+  'Neutrophils': { unit: '%', system: 'Blood & immune', direction: 'two_sided', ref: { low: 40, high: 75 },
     note: 'Percentage range; absolute count (×10^9/L) is preferred if available.' },
-  'Lymphocytes': { unit: '%', system: 'Blood', direction: 'two_sided', ref: { low: 20, high: 45 } },
-  'Monocytes': { unit: '%', system: 'Blood', direction: 'two_sided', ref: { low: 2, high: 10 } },
-  'Eosinophils': { unit: '%', system: 'Blood', direction: 'high_bad', ref: { high: 6 } },
-  'Basophils': { unit: '%', system: 'Blood', direction: 'high_bad', ref: { high: 2 } },
-  'Platelets': { unit: '10^9/L', system: 'Blood', direction: 'two_sided',
+  'Lymphocytes': { unit: '%', system: 'Blood & immune', direction: 'two_sided', ref: { low: 20, high: 45 } },
+  'Monocytes': { unit: '%', system: 'Blood & immune', direction: 'two_sided', ref: { low: 2, high: 10 } },
+  'Eosinophils': { unit: '%', system: 'Blood & immune', direction: 'high_bad', ref: { high: 6 } },
+  'Basophils': { unit: '%', system: 'Blood & immune', direction: 'high_bad', ref: { high: 2 } },
+  'Platelets': { unit: '10^9/L', system: 'Blood & immune', direction: 'two_sided',
     ref: { low: 150, high: 400 }, critical: { low: 50, high: 1000 } },
-  'NLR': { unit: 'ratio', system: 'Blood', direction: 'high_bad', ref: { high: 3 }, optimal: { high: 2 },
+  'Absolute Neutrophil Count': { unit: '10^9/L', system: 'Blood & immune', direction: 'two_sided',
+    ref: { low: 1.5, high: 7.5 }, critical: { low: 0.5 }, crossLinks: ['illness'],
+    note: 'Low ANC (neutropenia) raises infection risk; <0.5 is severe.' },
+  'Reticulocyte': { unit: '%', system: 'Blood & immune', direction: 'two_sided', ref: { low: 0.5, high: 2.5 },
+    note: 'Marrow response marker for the anaemia work-up: high suggests blood loss/haemolysis, low suggests under-production.' },
+  'NLR': { unit: 'ratio', system: 'Blood & immune', direction: 'high_bad', ref: { high: 3 }, optimal: { high: 2 },
     crossLinks: ['stress', 'illness'], note: 'Neutrophil-to-lymphocyte ratio — a general inflammation/stress marker.' },
 
-  // ── Inflammation & Iron Profile → Inflammation & Iron ────────────────────
-  'hs-CRP': { unit: 'mg/L', system: 'Inflammation & Iron', direction: 'high_bad',
+  // ── Acute Phase Reactants → split (hs-CRP→Heart; rest→Blood & immune) ──
+  'hs-CRP': { unit: 'mg/L', system: 'Heart', direction: 'high_bad',
     ref: { high: 3 }, optimal: { high: 1 }, critical: { high: 10 },
     crossLinks: ['stress', 'sleep', 'nutrition', 'metabolic', 'central_adiposity'],
     note: '<1 low / 1–3 average / >3 high cardiovascular risk; >10 suggests acute inflammation — interpret the cause.' },
-  'ESR': { unit: 'mm/hr', system: 'Inflammation & Iron', direction: 'high_bad', ref: esrUpper, crossLinks: ['illness'] },
-  'Ferritin': { unit: 'ng/mL', system: 'Inflammation & Iron', direction: 'two_sided',
+  'ESR': { unit: 'mm/hr', system: 'Blood & immune', direction: 'high_bad', ref: esrUpper, crossLinks: ['illness'] },
+  'Ferritin': { unit: 'ng/mL', system: 'Blood & immune', direction: 'two_sided',
     ref: { male: { low: 30, high: 400 }, female: { low: 15, high: 200 } },
     crossLinks: ['fatigue', 'hair_loss', 'cognition', 'activity'],
     note: 'Acute-phase reactant — read alongside hs-CRP. If hs-CRP is elevated, a normal-looking ferritin can mask iron deficiency.' },
-  'Serum Iron': { unit: 'µg/dL', system: 'Inflammation & Iron', direction: 'two_sided', ref: { low: 60, high: 170 } },
-  'TIBC': { unit: 'µg/dL', system: 'Inflammation & Iron', direction: 'two_sided', ref: { low: 240, high: 450 },
+  'Serum Iron': { unit: 'µg/dL', system: 'Blood & immune', direction: 'two_sided', ref: { low: 60, high: 170 } },
+  'TIBC': { unit: 'µg/dL', system: 'Blood & immune', direction: 'two_sided', ref: { low: 240, high: 450 },
     note: 'High TIBC with low ferritin/iron supports iron deficiency.' },
-  'Transferrin Saturation': { unit: '%', system: 'Inflammation & Iron', direction: 'two_sided',
+  'Transferrin Saturation': { unit: '%', system: 'Blood & immune', direction: 'two_sided',
     ref: { low: 20, high: 50 }, crossLinks: ['fatigue'],
     note: '<20% supports iron deficiency; >50% suggests iron overload. Derived = Serum Iron / TIBC × 100.' },
 
-  // ── Vitamins & Minerals ───────────────────────────────────────────────────
-  'Vitamin D (25-OH)': { unit: 'ng/mL', system: 'Vitamins & Minerals', direction: 'low_bad',
+  // ── Vitamins → Vitamins ────────────────────────────────────────────────
+  'Vitamin D (25-OH)': { unit: 'ng/mL', system: 'Vitamins', direction: 'low_bad',
     ref: { low: 30 }, optimal: { low: 40, high: 60 }, critical: { low: 10 },
     crossLinks: ['fatigue', 'wellbeing', 'cognition'],
     note: '<20 deficient, 20–30 insufficient, ≥30 sufficient. Deficiency is highly prevalent in South-Asian populations.' },
-  'Folate (B9)': { unit: 'ng/mL', system: 'Vitamins & Minerals', direction: 'low_bad', ref: { low: 4 }, crossLinks: ['cognition'] },
-  'Vitamin B12': { unit: 'pg/mL', system: 'Vitamins & Minerals', direction: 'low_bad',
+  'Folate (B9)': { unit: 'ng/mL', system: 'Vitamins', direction: 'low_bad', ref: { low: 4 }, crossLinks: ['cognition'] },
+  'Vitamin B12': { unit: 'pg/mL', system: 'Vitamins', direction: 'low_bad',
     ref: { low: 200 }, optimal: { low: 400 }, crossLinks: ['cognition', 'fatigue'],
     note: '200–300 is borderline and may still be deficient — consider MMA/homocysteine.' },
-  'Magnesium': { unit: 'mg/dL', system: 'Vitamins & Minerals', direction: 'two_sided', ref: { low: 1.7, high: 2.2 },
+  'Magnesium': { unit: 'mg/dL', system: 'Vitamins', direction: 'two_sided', ref: { low: 1.7, high: 2.2 },
     crossLinks: ['sleep', 'stress', 'metabolic'], note: 'Serum magnesium underestimates total-body status.' },
-  'Sodium': { unit: 'mmol/L', system: 'Vitamins & Minerals', direction: 'two_sided',
-    ref: { low: 135, high: 145 }, critical: { low: 125, high: 155 } },
-  'Potassium': { unit: 'mmol/L', system: 'Vitamins & Minerals', direction: 'two_sided',
-    ref: { low: 3.5, high: 5.1 }, critical: { low: 3.0, high: 6.0 }, referOnAbnormal: true },
-  'Chloride': { unit: 'mmol/L', system: 'Vitamins & Minerals', direction: 'two_sided', ref: { low: 98, high: 107 } },
-  'Bicarbonate': { unit: 'mmol/L', system: 'Vitamins & Minerals', direction: 'two_sided', ref: { low: 22, high: 29 } },
-  'Calcium': { unit: 'mg/dL', system: 'Vitamins & Minerals', direction: 'two_sided',
-    ref: { low: 8.5, high: 10.5 }, critical: { low: 7, high: 12 },
-    note: 'Correct for albumin where possible.' },
 
-  // ── Liver Function → Liver ────────────────────────────────────────────────
+  // ── Liver Function → Liver ──────────────────────────────────────────────
   'ALT': { unit: 'U/L', system: 'Liver', direction: 'high_bad',
     ref: { male: { high: 41 }, female: { high: 33 } }, critical: { high: 200 },
     crossLinks: ['metabolic', 'central_adiposity'] },
@@ -192,7 +188,7 @@ export const BIOMARKERS: Record<string, BiomarkerDef> = {
     note: 'Sensitive to alcohol — corroborates the AUDIT-C risk flag.' },
   'ALP': { unit: 'U/L', system: 'Liver', direction: 'two_sided', ref: { low: 40, high: 130 } },
   'Bilirubin': { unit: 'mg/dL', system: 'Liver', direction: 'high_bad', ref: { high: 1.2 },
-    note: 'Mild isolated elevation is often benign (e.g., Gilbert’s syndrome).' },
+    note: 'Mild isolated elevation is often benign (e.g., Gilbert\u2019s syndrome).' },
   'Total Protein': { unit: 'g/dL', system: 'Liver', direction: 'two_sided', ref: { low: 6.0, high: 8.3 } },
   'Albumin': { unit: 'g/dL', system: 'Liver', direction: 'low_bad', ref: { low: 3.5, high: 5.0 } },
   'Globulin': { unit: 'g/dL', system: 'Liver', direction: 'two_sided', ref: { low: 2.0, high: 3.5 } },
@@ -200,24 +196,35 @@ export const BIOMARKERS: Record<string, BiomarkerDef> = {
     ref: { high: 60 }, optimal: { high: 30 }, crossLinks: ['central_adiposity', 'metabolic', 'nutrition'],
     note: '<30 rules out, ≥60 rules in hepatic steatosis.' },
 
-  // ── Kidney Function → Kidney ──────────────────────────────────────────────
+  // ── Kidney Function (+ Urinalysis) → Kidney ─────────────────────────────
   'Creatinine': { unit: 'mg/dL', system: 'Kidney', direction: 'high_bad',
     ref: { male: { high: 1.3, low: 0.7 }, female: { high: 1.1, low: 0.6 } }, critical: { high: 2.0 } },
   'eGFR': { unit: 'mL/min/1.73m²', system: 'Kidney', direction: 'low_bad',
     ref: { low: 90 }, critical: { low: 30 },
     note: 'Use the 2021 race-free CKD-EPI equation — do NOT apply an ethnicity coefficient here. <60 persistent suggests CKD.' },
-  'BUN/Urea': { unit: 'mg/dL', system: 'Kidney', direction: 'two_sided', ref: { low: 7, high: 20 },
-    note: 'Range assumes BUN. If your lab reports Urea, the range is ≈15–40 mg/dL — confirm which the OCR captures.' },
+  'Urea': { unit: 'mg/dL', system: 'Kidney', direction: 'two_sided', ref: { low: 15, high: 40 },
+    note: 'Blood urea. Rises with kidney impairment, dehydration, high protein intake, or GI bleeding.' },
+  'Uric Acid': { unit: 'mg/dL', system: 'Kidney', direction: 'high_bad',
+    ref: { male: { high: 7.0 }, female: { high: 6.0 } }, crossLinks: ['metabolic', 'central_adiposity', 'alcohol'],
+    note: 'High uric acid relates to gout risk and clusters with metabolic syndrome.' },
+  'BUN/Creatinine Ratio': { unit: 'ratio', system: 'Kidney', direction: 'high_bad', ref: { high: 20 },
+    note: '>20 with high-normal creatinine suggests a pre-renal/dehydration picture rather than intrinsic kidney disease.' },
+  'Sodium': { unit: 'mmol/L', system: 'Kidney', direction: 'two_sided', ref: { low: 135, high: 145 }, critical: { low: 125, high: 155 } },
+  'Potassium': { unit: 'mmol/L', system: 'Kidney', direction: 'two_sided', ref: { low: 3.5, high: 5.1 }, critical: { low: 3.0, high: 6.0 }, referOnAbnormal: true },
+  'Chloride': { unit: 'mmol/L', system: 'Kidney', direction: 'two_sided', ref: { low: 98, high: 107 } },
+  'Calcium': { unit: 'mg/dL', system: 'Kidney', direction: 'two_sided', ref: { low: 8.5, high: 10.5 }, critical: { low: 7, high: 12 },
+    note: 'Correct for albumin where possible.' },
+  'Bicarbonate': { unit: 'mmol/L', system: 'Kidney', direction: 'two_sided', ref: { low: 22, high: 29 } },
   // Urinalysis (qualitative)
   'Colour & Transparency': { unit: '', system: 'Kidney', direction: 'qualitative',
     normalValues: ['pale', 'straw', 'yellow', 'clear'], abnormalValues: ['cloudy', 'turbid', 'red', 'brown'] },
   'Protein': { unit: '', system: 'Kidney', direction: 'qualitative',
     normalValues: ['nil', 'negative', 'absent'], abnormalValues: ['trace', '1+', '2+', '3+', 'present'], referOnAbnormal: true,
     note: 'Proteinuria warrants clinical follow-up.' },
-  'Glucose': { unit: '', system: 'Kidney', direction: 'qualitative',
+  'Glucose': { unit: '', system: 'Metabolic', direction: 'qualitative',
     normalValues: ['nil', 'negative', 'absent'], abnormalValues: ['1+', '2+', '3+', 'present'],
     crossLinks: ['metabolic'], note: 'Glycosuria → check fasting glucose / HbA1c.' },
-  'Ketones': { unit: '', system: 'Kidney', direction: 'qualitative',
+  'Ketones': { unit: '', system: 'Metabolic', direction: 'qualitative',
     normalValues: ['nil', 'negative', 'absent'], abnormalValues: ['trace', '1+', '2+', 'present'],
     crossLinks: ['metabolic'] },
   'pH': { unit: '', system: 'Kidney', direction: 'two_sided', ref: { low: 4.5, high: 8.0 } },
@@ -233,7 +240,7 @@ export const BIOMARKERS: Record<string, BiomarkerDef> = {
   'Bacteria': { unit: '', system: 'Kidney', direction: 'qualitative',
     normalValues: ['nil', 'absent', 'none'], abnormalValues: ['present', 'numerous', 'many'], crossLinks: ['illness'] },
 
-  // ── Metabolic → Metabolic ─────────────────────────────────────────────────
+  // ── Metabolic → Metabolic ───────────────────────────────────────────────
   'Fasting Glucose': { unit: 'mg/dL', system: 'Metabolic', direction: 'high_bad',
     ref: { high: 99, low: 70 }, optimal: { high: 90 }, critical: { high: 250, low: 54 },
     crossLinks: ['afternoon', 'nutrition', 'central_adiposity'],
@@ -248,26 +255,26 @@ export const BIOMARKERS: Record<string, BiomarkerDef> = {
     crossLinks: ['afternoon', 'central_adiposity', 'nutrition'],
     note: '5.7–6.4 = prediabetes range; ≥6.5 = diabetes range (refer).' },
 
-  // ── Lipids & Cardiac → Heart & Lipids ────────────────────────────────────
-  'Total Cholesterol': { unit: 'mg/dL', system: 'Heart & Lipids', direction: 'high_bad', ref: { high: 200 } },
-  'HDL': { unit: 'mg/dL', system: 'Heart & Lipids', direction: 'low_bad',
+  // ── Lipids & Cardiac → Heart ────────────────────────────────────────────
+  'Total Cholesterol': { unit: 'mg/dL', system: 'Heart', direction: 'high_bad', ref: { high: 200 } },
+  'HDL': { unit: 'mg/dL', system: 'Heart', direction: 'low_bad',
     ref: { male: { low: 40 }, female: { low: 50 } }, crossLinks: ['activity'] },
-  'LDL': { unit: 'mg/dL', system: 'Heart & Lipids', direction: 'high_bad',
+  'LDL': { unit: 'mg/dL', system: 'Heart', direction: 'high_bad',
     ref: { high: 130 }, optimal: { high: 100 }, critical: { high: 190 },
     note: '≥190 raises the question of familial hypercholesterolaemia (refer).' },
-  'Triglycerides': { unit: 'mg/dL', system: 'Heart & Lipids', direction: 'high_bad',
+  'Triglycerides': { unit: 'mg/dL', system: 'Heart', direction: 'high_bad',
     ref: { high: 150 }, critical: { high: 500 }, crossLinks: ['central_adiposity', 'metabolic'],
     note: '≥500 carries pancreatitis risk (refer).' },
-  'Non-HDL': { unit: 'mg/dL', system: 'Heart & Lipids', direction: 'high_bad', ref: { high: 160 }, optimal: { high: 130 } },
-  'TC/HDL Ratio': { unit: 'ratio', system: 'Heart & Lipids', direction: 'high_bad', ref: { high: 5 }, optimal: { high: 3.5 } },
-  'TG/HDL Ratio': { unit: 'ratio', system: 'Heart & Lipids', direction: 'high_bad', ref: { high: 3 }, optimal: { high: 2 },
+  'Non-HDL': { unit: 'mg/dL', system: 'Heart', direction: 'high_bad', ref: { high: 160 }, optimal: { high: 130 } },
+  'TC/HDL Ratio': { unit: 'ratio', system: 'Heart', direction: 'high_bad', ref: { high: 5 }, optimal: { high: 3.5 } },
+  'TG/HDL Ratio': { unit: 'ratio', system: 'Heart', direction: 'high_bad', ref: { high: 3 }, optimal: { high: 2 },
     crossLinks: ['metabolic', 'central_adiposity'], note: 'A practical insulin-resistance proxy.' },
-  'ApoB': { unit: 'mg/dL', system: 'Heart & Lipids', direction: 'high_bad', ref: { high: 130 }, optimal: { high: 90 },
+  'ApoB': { unit: 'mg/dL', system: 'Heart', direction: 'high_bad', ref: { high: 130 }, optimal: { high: 90 },
     note: 'Arguably a better cardiovascular risk marker than LDL.' },
-  'Lp(a)': { unit: 'nmol/L', system: 'Heart & Lipids', direction: 'high_bad', ref: { high: 75 },
+  'Lp(a)': { unit: 'nmol/L', system: 'Heart', direction: 'high_bad', ref: { high: 75 },
     note: 'Largely genetic; a once-in-a-lifetime measurement. Units vary (nmol/L vs mg/dL) — confirm.' },
 
-  // ── Thyroid → Thyroid ─────────────────────────────────────────────────────
+  // ── Thyroid → Thyroid ───────────────────────────────────────────────────
   'TSH': { unit: 'mIU/L', system: 'Thyroid', direction: 'two_sided',
     ref: { low: 0.4, high: 4.0 }, optimal: { low: 0.5, high: 2.5 }, critical: { high: 10 },
     crossLinks: ['fatigue', 'cognition', 'hair_loss', 'cold', 'wellbeing'],
@@ -275,7 +282,7 @@ export const BIOMARKERS: Record<string, BiomarkerDef> = {
   'FT3': { unit: 'pg/mL', system: 'Thyroid', direction: 'two_sided', ref: { low: 2.3, high: 4.2 } },
   'FT4': { unit: 'ng/dL', system: 'Thyroid', direction: 'two_sided', ref: { low: 0.8, high: 1.8 } },
 
-  // ── Hormones → Hormones ───────────────────────────────────────────────────
+  // ── Hormones → Hormones ─────────────────────────────────────────────────
   'Morning Cortisol': { unit: 'µg/dL', system: 'Hormones', direction: 'two_sided', ref: { low: 6, high: 18 },
     crossLinks: ['stress'], note: 'A single morning value is a screen only — diurnal pattern (or cortisol:DHEA) is more informative.' },
   'DHEA-S': { unit: 'µg/dL', system: 'Hormones', direction: 'two_sided',
@@ -299,4 +306,27 @@ export const BIOMARKERS: Record<string, BiomarkerDef> = {
     note: 'Phase/menopause dependent; elevated in the menopausal transition.' },
   'LH (women)': { unit: 'mIU/mL', system: 'Hormones', direction: 'context',
     note: 'Phase dependent; interpret with FSH and cycle context.' },
+
+  // ── Allergy Panel → Blood & immune ──────────────────────────────────────
+  'Total IgE': { unit: 'IU/mL', system: 'Blood & immune', direction: 'high_bad', ref: { high: 100 },
+    crossLinks: ['illness'], note: 'Elevated total IgE suggests atopy/allergy; interpret with eosinophils and allergy history.' },
+
+  // ── Derived indices (computed in interpretPanel; not OCR-extracted) ───────
+  // Each is injected as a 'derived' biomarker so it gets a tier and feeds the system rollup.
+  'FIB-4': { unit: 'index', system: 'Liver', direction: 'high_bad',
+    ref: { high: 2.67 }, optimal: { high: 1.30 },
+    crossLinks: ['metabolic', 'central_adiposity', 'alcohol'],
+    note: 'Liver-fibrosis risk = (Age × AST) / (Platelets × √ALT). <1.30 low, 1.30–2.67 indeterminate, >2.67 high. Best validated ages 35–65; for ≥65 the low-risk cut-off rises to 2.0.' },
+  'TyG Index': { unit: 'index', system: 'Metabolic', direction: 'high_bad',
+    ref: { high: 8.8 }, optimal: { high: 8.5 }, crossLinks: ['central_adiposity', 'nutrition', 'activity'],
+    note: 'Triglyceride-glucose index = ln(Triglycerides × Fasting Glucose / 2); an insulin-resistance surrogate. Thresholds are population-dependent.' },
+  'Remnant Cholesterol': { unit: 'mg/dL', system: 'Heart', direction: 'high_bad',
+    ref: { high: 30 }, optimal: { high: 24 }, crossLinks: ['metabolic', 'central_adiposity'],
+    note: 'Total Cholesterol − HDL − LDL; the atherogenic cholesterol carried by triglyceride-rich remnants, a source of residual cardiovascular risk.' },
+  'A/G Ratio': { unit: 'ratio', system: 'Liver', direction: 'two_sided', ref: { low: 1.1, high: 2.5 },
+    note: 'Albumin / Globulin. Low (<1.1) can reflect chronic inflammation or liver synthetic issues; high can reflect dehydration.' },
+  'Corrected Calcium': { unit: 'mg/dL', system: 'Kidney', direction: 'two_sided', ref: { low: 8.5, high: 10.5 }, critical: { low: 7, high: 12 },
+    note: 'Albumin-corrected calcium = Calcium + 0.8 × (4.0 − Albumin); a truer calcium when albumin is abnormal.' },
+  'LH/FSH Ratio': { unit: 'ratio', system: 'Hormones', direction: 'context', ref: { high: 2 },
+    note: 'LH:FSH > 2 in a pre-menopausal woman can support a PCOS picture; cycle timing strongly affects it.' },
 }

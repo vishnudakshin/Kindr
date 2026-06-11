@@ -64,6 +64,8 @@ export interface HistoryResponses {
   heightIn: string
   weightLbs: string
   waistCm: string               // NEW — always in cm (for waist-to-height ratio)
+  bpSystolic?: number | null    // NEW — optional resting BP (metabolic-syndrome criterion, hypertension awareness)
+  bpDiastolic?: number | null   // NEW
   conditions: string[]
   conditionsOther: string
   medications: string

@@ -111,29 +111,20 @@ export function RangeBar({ result, bioStat }: RangeBarProps) {
 
   // ── Resolve track + sage-band bounds ────────────────────────────────────────
   const ref = bioStat?.refRange ?? null
-  const opt = bioStat?.optimalRange ?? null
   const direction: Direction = bioStat?.direction ?? 'two_sided'
 
   let trackLo: number, trackHi: number
   let sageLo: number | null = null
   let sageHi: number | null = null
-  let showOptLabel = false
+  const showOptLabel = false
 
-  if (ref || opt) {
-    const bounds = trackBounds(numericValue, ref, opt, direction)
+  if (ref) {
+    const bounds = trackBounds(numericValue, ref, null, direction)
     if (!bounds) return null
     trackLo = bounds.lo
     trackHi = bounds.hi
-
-    // Sage = explicit optimal > ref range > nothing.
-    if (opt) {
-      sageLo = opt.low ?? trackLo
-      sageHi = opt.high ?? trackHi
-      showOptLabel = true
-    } else if (ref) {
-      sageLo = ref.low ?? trackLo
-      sageHi = ref.high ?? trackHi
-    }
+    sageLo = ref.low ?? trackLo
+    sageHi = ref.high ?? trackHi
   } else {
     // Fall back to string parsing.
     const fb = parseRefString(result.refRange)

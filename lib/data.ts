@@ -1,6 +1,9 @@
 import type { AppData, QuestionnaireResponses, BloodPanel, DayEntry, AssessmentCycle, ShareRecord, SectionId, RelationshipType } from './types'
-import { computeAll } from './scoring'
+import { computeAll, scoreQuestionnaire } from './scoring'
 import { interpretPanel, type SystemStatus as InterpSysStatus } from './lab-interpretation'
+import { buildFindings, type FindingsResult, type Finding } from './findings'
+import { buildReport, type KindrReport } from './report'
+export type { FindingsResult, Finding, KindrReport }
 
 // ── Cycle day generator ────────────────────────────────────────────────────────
 
@@ -116,6 +119,7 @@ const questionnaire: QuestionnaireResponses = {
   history: {
     age: null, sex: '', ethnicity: 'south_asian', dietaryPreferences: [], unit: 'metric',
     heightCm: '', weightKg: '', heightFt: '', heightIn: '', weightLbs: '', waistCm: '',
+    bpSystolic: null, bpDiastolic: null,
     conditions: ['None'], conditionsOther: '',
     medications: 'None', medicationsText: '',
     allergies: 'None known', allergiesText: '',
@@ -152,17 +156,18 @@ export const mockData: AppData = {
       MCH:                   { value: '29.5', unit: 'pg',      refRange: '27–33',     status: 'normal' },
       MCHC:                  { value: '33.5', unit: 'g/dL',    refRange: '32–36',     status: 'normal' },
       RDW:                   { value: '13.2', unit: '%',       refRange: '11.5–14.5', status: 'normal' },
-      'White Blood Cells':   { value: '6.2',  unit: '×10⁹/L', refRange: '4–11',      status: 'normal' },
-      Neutrophils:           { value: '3.8',  unit: '×10⁹/L', refRange: '1.8–7.7',   status: 'normal' },
+      'White Blood Cells':         { value: '6.2',  unit: '×10⁹/L', refRange: '4–11',      status: 'normal' },
+      'Absolute Neutrophil Count': { value: '3.8',  unit: '×10⁹/L', refRange: '1.8–7.7',   status: 'normal' },
+      Neutrophils:                 { value: '3.8',  unit: '×10⁹/L', refRange: '1.8–7.7',   status: 'normal' },
       Lymphocytes:           { value: '1.9',  unit: '×10⁹/L', refRange: '1.0–4.8',   status: 'normal' },
       Monocytes:             { value: '0.5',  unit: '×10⁹/L', refRange: '0.2–1.0',   status: 'normal' },
       Eosinophils:           { value: '0.18', unit: '×10⁹/L', refRange: '0.04–0.4',  status: 'normal' },
       Basophils:             { value: '0.03', unit: '×10⁹/L', refRange: '0.0–0.1',   status: 'normal' },
-      Platelets:             { value: '210',  unit: '×10⁹/L', refRange: '150–400',   status: 'normal' },
-      NLR:                   { value: '2.0',  unit: '',        refRange: '<3.0',      status: 'normal' },
+      Platelets:              { value: '210',  unit: '×10⁹/L', refRange: '150–400',   status: 'normal' },
+      'Reticulocyte':         { value: '',     unit: '%',       refRange: '0.5–2.5',  status: undefined },
+      NLR:                    { value: '2.0',  unit: '',        refRange: '<3.0',      status: 'normal' },
     },
     'Inflammation & Iron Profile': {
-      'hs-CRP':                 { value: '2.1', unit: 'mg/L',   refRange: '<1.0',     status: 'borderline' },
       'ESR':                    { value: '12',  unit: 'mm/hr',  refRange: '0–15',     status: 'normal' },
       'Ferritin':               { value: '28',  unit: 'ng/mL',  refRange: '30–400',   status: 'borderline' },
       'Serum Iron':             { value: '85',  unit: 'µg/dL',  refRange: '60–170',   status: 'normal' },
@@ -192,9 +197,11 @@ export const mockData: AppData = {
       'Fatty Liver Index':{ value: '32',  unit: '',       refRange: '<30',     status: 'borderline' },
     },
     'Kidney Function': {
-      'Creatinine': { value: '0.9', unit: 'mg/dL',  refRange: '0.7–1.2', status: 'normal' },
-      'eGFR':       { value: '92',  unit: 'mL/min', refRange: '>60',     status: 'normal' },
-      'BUN/Urea':   { value: '15',  unit: 'mg/dL',  refRange: '7–25',    status: 'normal' },
+      'Creatinine':           { value: '0.9', unit: 'mg/dL',  refRange: '0.7–1.2', status: 'normal' },
+      'eGFR':                 { value: '92',  unit: 'mL/min', refRange: '>90',     status: 'normal' },
+      'Urea':                 { value: '30',  unit: 'mg/dL',  refRange: '15–40',   status: 'normal' },
+      'Uric Acid':            { value: '5.8', unit: 'mg/dL',  refRange: '<7.2',    status: 'normal' },
+      'BUN/Creatinine Ratio': { value: '16',  unit: '',        refRange: '10–20',   status: 'normal' },
     },
     'Metabolic': {
       'Fasting Glucose':  { value: '96',  unit: 'mg/dL', refRange: '70–100',   status: 'normal' },
@@ -212,6 +219,7 @@ export const mockData: AppData = {
       'TG/HDL Ratio':      { value: '2.4', unit: '',       refRange: '<2.0',    status: 'borderline' },
       'ApoB':              { value: '88',  unit: 'mg/dL', refRange: '<90',     status: 'normal' },
       'Lp(a)':             { value: '22',  unit: 'mg/dL', refRange: '<30',     status: 'normal' },
+      'hs-CRP':            { value: '2.1', unit: 'mg/L',  refRange: '<3.0',    status: 'borderline' },
     },
     'Thyroid': {
       'TSH':  { value: '2.1', unit: 'mIU/L', refRange: '0.4–4.0', status: 'normal' },
@@ -224,16 +232,17 @@ export const mockData: AppData = {
       'Glucose':               { value: 'Negative',      unit: '',    refRange: 'Negative',       status: 'normal' },
       'Ketones':               { value: 'Negative',      unit: '',    refRange: 'Negative',       status: 'normal' },
       'pH':                    { value: '6.0',            unit: '',    refRange: '4.5–8.0',        status: 'normal' },
-      'RBC':                   { value: '0',              unit: '/hpf', refRange: '0–2',           status: 'normal' },
-      'Pus Cells':             { value: '3',              unit: '/hpf', refRange: '0–5',           status: 'normal' },
-      'Epithelial Cells':      { value: 'Occasional',     unit: '/hpf', refRange: 'Occasional',    status: 'normal' },
-      'Casts':                 { value: 'None seen',      unit: '',    refRange: 'None seen',      status: 'normal' },
-      'Crystals':              { value: 'None seen',      unit: '',    refRange: 'None seen',      status: 'normal' },
-      'Bacteria':              { value: 'Absent',         unit: '',    refRange: 'Absent',         status: 'normal' },
+      'RBC':       { value: '0',         unit: '/hpf', refRange: '0–2',     status: 'normal' },
+      'Pus Cells': { value: '3',         unit: '/hpf', refRange: '0–5',     status: 'normal' },
+      'Casts':     { value: 'None seen', unit: '',     refRange: 'None seen', status: 'normal' },
+      'Crystals':  { value: 'None seen', unit: '',     refRange: 'None seen', status: 'normal' },
     },
-    'Hormones': {
+    'Stress Hormones': {
       'Morning Cortisol': { value: '18',  unit: 'µg/dL',  refRange: '6–23',    status: 'normal' },
       'DHEA-S':           { value: '220', unit: 'µg/dL',  refRange: '85–690',  status: 'normal' },
+    },
+    'Allergy Panel - IgE': {
+      'Total IgE': { value: '', unit: 'IU/mL', refRange: '<100', status: undefined },
     },
     'Hormones · Optional': {
       'SHBG':                       { value: '', unit: 'nmol/L', refRange: '10–57',    status: undefined },
@@ -380,12 +389,22 @@ export const bodySystems: BodySystem[] = [
   // LEFT column — top to bottom
   deriveSystem('thyroid',      'Thyroid',                    'Thyroid',             { x: 50, y: 21 }, 'left'),
   deriveSystem('liver',        'Liver',                      'Liver',               { x: 44, y: 39 }, 'left'),
-  deriveSystem('blood',        'Blood',                      'Blood',               { x: 44, y: 55 }, 'left'),
-  deriveSystem('vitamins',     'Vitamins & Minerals',        'Vitamins & Minerals', { x: 42, y: 70 }, 'left'),
+  deriveSystem('blood',        'Blood',                      'Blood & immune',      { x: 44, y: 55 }, 'left'),
+  deriveSystem('vitamins',     'Vitamins & Minerals',        'Vitamins',            { x: 42, y: 70 }, 'left'),
   // RIGHT column — top to bottom
   deriveSystem('hormones',     'Stress & Hormones',          'Hormones',            { x: 50, y: 10 }, 'right'),
-  deriveSystem('heart',        'Heart & Lipids',             'Heart & Lipids',      { x: 52, y: 27 }, 'right'),
+  deriveSystem('heart',        'Heart & Lipids',             'Heart',               { x: 52, y: 27 }, 'right'),
   deriveSystem('kidney',       'Kidney & Urinalysis',        'Kidney',              { x: 56, y: 43 }, 'right'),
-  deriveSystem('inflammation', 'Inflammation & Iron Profile','Inflammation & Iron', { x: 56, y: 60 }, 'right'),
+  deriveSystem('inflammation', 'Inflammation & Iron Profile','Blood & immune',      { x: 56, y: 60 }, 'right'),
   deriveSystem('metabolic',    'Metabolic',                  'Metabolic',           { x: 58, y: 80 }, 'right'),
 ]
+
+// ── Findings layer (Layer 3) ──────────────────────────────────────────────────
+const _qScore = scoreQuestionnaire(questionnaire)
+export const findings: FindingsResult = buildFindings(_qScore, _labInterp, questionnaire.history)
+
+// ── Report layer (Layer 4) ────────────────────────────────────────────────────
+export const report: KindrReport = buildReport(findings, _labInterp, {
+  generatedAt: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
+  reassessmentDays: 90,
+})

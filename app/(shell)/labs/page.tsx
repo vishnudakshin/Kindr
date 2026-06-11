@@ -36,27 +36,32 @@ const SYS_LABEL_COLOR: Record<string, string> = {
 
 const NARRATIVES: Record<string, string> = {
   'Complete Blood Count':          'All blood cell counts are within range — no signs of anaemia or infection.',
-  'Inflammation & Iron Profile':   'hs-CRP is mildly elevated and ferritin is at the low end. Worth monitoring inflammation and iron status together.',
+  'Inflammation & Iron Profile':   'ESR is within range. Ferritin is at the low end — worth monitoring iron status.',
   'Vitamins & Minerals':           'Vitamin D is below the optimal zone. B12 and folate look healthy. Electrolytes are within normal range.',
   'Liver Function':                'Liver enzymes are all normal. The fatty liver index is marginally elevated.',
-  'Kidney Function':               'All kidney markers are within range — filtration rate is excellent.',
+  'Kidney Function':               'Creatinine and eGFR are excellent. Urea, uric acid, and BUN/creatinine ratio are all within range.',
   'Metabolic':                     'Glucose and HbA1c are good. HOMA-IR is slightly elevated, an early signal of insulin resistance.',
-  'Lipids & Cardiac':              'Cholesterol is well-managed. Non-HDL and TG/HDL ratio are mildly high.',
+  'Lipids & Cardiac':              'Cholesterol is well-managed. Non-HDL and TG/HDL ratio are mildly high. hs-CRP is borderline — monitoring inflammation alongside lipids is useful.',
   'Thyroid':                       'TSH, FT3, and FT4 are all within normal range.',
   'Urinalysis':                    'All urinalysis markers are normal.',
-  'Hormones':                      'Cortisol and DHEA-S are both within healthy ranges.',
+  'Stress Hormones':               'Cortisol and DHEA-S are both within healthy ranges.',
   'Hormones · Optional':           'No optional hormone values recorded yet.',
+  'Allergy Panel - IgE':           'No allergy values recorded yet. Total IgE helps screen for overall allergic sensitisation.',
 }
 
 // Defines subheadings within certain accordion panels.
 const SUBGROUPS: Record<string, { label: string; tests: string[] }[]> = {
   'Inflammation & Iron Profile': [
-    { label: 'Inflammation', tests: ['hs-CRP', 'ESR'] },
+    { label: 'Inflammation', tests: ['ESR'] },
     { label: 'Iron Profile',  tests: ['Serum Iron', 'Ferritin', 'TIBC', 'Transferrin Saturation'] },
   ],
   'Vitamins & Minerals': [
     { label: 'Vitamins', tests: ['Vitamin D (25-OH)', 'Folate (B9)', 'Vitamin B12'] },
     { label: 'Minerals', tests: ['Sodium', 'Potassium', 'Chloride', 'Bicarbonate', 'Calcium', 'Magnesium'] },
+  ],
+  'Lipids & Cardiac': [
+    { label: 'Lipids', tests: ['Total Cholesterol', 'HDL', 'LDL', 'Triglycerides', 'Non-HDL', 'TC/HDL Ratio', 'TG/HDL Ratio', 'ApoB', 'Lp(a)'] },
+    { label: 'Cardiac inflammation', tests: ['hs-CRP'] },
   ],
 }
 
@@ -153,7 +158,9 @@ const PARAM_DESC: Record<string, string> = {
   Eosinophils:              'White cells that respond to allergies and parasitic infections. Persistently elevated levels may point to asthma, hay fever, or food sensitivity.',
   Basophils:                'Rare white cells involved in allergic responses. Only clinically relevant when significantly elevated.',
   Platelets:                'Small cell fragments that form blood clots. Low counts increase bleeding risk; very high counts can raise clotting risk.',
+  'Reticulocyte':           'Immature red blood cells released from bone marrow. A low count with anaemia points to impaired production (iron deficiency, B12, kidney disease); a high count suggests haemolysis or recovery from acute blood loss.',
   NLR:                      'Neutrophil-to-lymphocyte ratio — a sensitive inflammatory marker. Values above 3 are associated with increased cardiovascular and cancer risk.',
+  'Absolute Neutrophil Count': 'The actual count of neutrophils in the blood — a more precise infection-risk marker than the percentage alone. Values below 1.0 indicate neutropenia; below 0.5 is severe and warrants urgent review.',
   'hs-CRP':                 'High-sensitivity C-reactive protein — the most widely used marker of systemic inflammation. Even mildly elevated levels are linked to higher cardiovascular risk.',
   ESR:                      'Erythrocyte sedimentation rate — a broad measure of inflammation. Less specific than CRP but useful for monitoring inflammatory conditions over time.',
   Ferritin:                 'The primary iron storage protein. Low ferritin depletes iron reserves before anaemia appears; elevated levels can signal inflammation or iron overload.',
@@ -175,7 +182,9 @@ const PARAM_DESC: Record<string, string> = {
   'Fatty Liver Index':      'A calculated score using BMI, waist circumference, GGT, and triglycerides. Scores above 30 suggest a higher likelihood of fatty liver disease.',
   Creatinine:               'A waste product from muscle metabolism cleared by the kidneys. Rising creatinine is an early warning sign of declining kidney function.',
   eGFR:                     'Estimated glomerular filtration rate — how much blood your kidneys filter per minute. The gold standard for tracking kidney function over time.',
-  'BUN/Urea':               'Blood urea nitrogen — another kidney waste product. High values alongside elevated creatinine confirm impaired kidney function.',
+  Urea:                     'A waste product from protein metabolism, cleared by the kidneys. Elevated levels alongside a high creatinine point to declining kidney clearance; very low levels can reflect liver disease or low protein intake.',
+  'Uric Acid':              'A breakdown product of purines (found in red meat, shellfish, alcohol, and fructose). Persistently high levels can cause gout and increase kidney stone risk.',
+  'BUN/Creatinine Ratio':   'A ratio that helps distinguish why kidney markers are elevated. A high ratio (>20) usually points to dehydration or reduced blood flow to the kidneys; a low ratio (<10) may suggest liver disease or low protein intake.',
   Sodium:                   'The main electrolyte controlling fluid balance. Abnormal levels affect nerve and muscle function and are often related to hydration.',
   Potassium:                'Critical for heart rhythm and muscle contraction. Even small deviations from normal can have significant cardiac effects.',
   Chloride:                 'Works alongside sodium to maintain fluid and acid-base balance. Usually follows sodium trends.',
@@ -206,10 +215,9 @@ const PARAM_DESC: Record<string, string> = {
   pH:                       'Urine acidity. Diet, kidney function, and infections all influence pH. Persistently alkaline urine may indicate a urinary tract infection.',
   RBC:                      'Red blood cells in urine (haematuria) can indicate kidney stones, infection, or more serious kidney or bladder disease.',
   'Pus Cells':              'White blood cells in urine — a primary indicator of urinary tract infection or kidney inflammation.',
-  'Epithelial Cells':       'A small number is normal. Large amounts can indicate contamination or kidney tubular damage.',
   Casts:                    'Cylindrical structures formed in the kidney tubules. Their presence and type can reveal significant kidney pathology.',
   Crystals:                 'Crystals in urine are often benign but some types (e.g. uric acid, calcium oxalate) are associated with kidney stone formation.',
-  Bacteria:                 'Bacteria in urine is abnormal and usually confirms a urinary tract infection when combined with elevated pus cells.',
+  'Total IgE':              'The total level of IgE antibodies — the immune proteins involved in allergic responses. Elevated levels suggest generalised allergic sensitisation, though a normal result does not rule out specific allergies.',
   SHBG:                     'Sex hormone-binding globulin — a protein that binds testosterone and oestrogen, affecting how much is biologically active.',
   'Total Testosterone (men)': 'The total amount of testosterone in blood. Optimal levels support energy, muscle mass, libido, mood, and metabolic health.',
   'Free Testosterone (men)':  'The biologically active fraction of testosterone not bound to SHBG or albumin. A better indicator of functional testosterone status.',
@@ -342,23 +350,33 @@ function SystemAccordion({
   const [open, setOpen] = useState(false)
 
   const activeTests = Object.entries(tests).filter(([, r]) => r.value !== '')
-  if (activeTests.length === 0) return null
+  const hasData = activeTests.length > 0
+
+  // Show panels with no recorded values only when they have a narrative placeholder
+  // (e.g. Allergy Panel, Hormones · Optional) — hide otherwise.
+  if (!hasData && !NARRATIVES[name]) return null
 
   // Derive dial score and color from interpretation if available; fall back to raw status.
   const activeMap = Object.fromEntries(activeTests)
   const fallbackStatus = aggregateStatus(activeMap)
   const fallbackScore  = healthScore(activeMap)
 
-  const displayLabel = sysStat?.label ?? STATUS_LABEL[fallbackStatus]
-  const displayColor = sysStat
-    ? (SYS_LABEL_COLOR[sysStat.label] ?? '#5A7A50')
-    : STATUS_COLOR[fallbackStatus]
-  const dialStatus: Status = sysStat
-    ? (sysStat.label === 'Optimal' ? 'normal' : sysStat.label === 'Monitor' ? 'borderline' : 'abnormal')
-    : fallbackStatus
-  const dialPct = sysStat
-    ? (sysStat.label === 'Optimal' ? 1 : sysStat.label === 'Monitor' ? 0.6 : 0.3)
-    : fallbackScore
+  const displayLabel = !hasData
+    ? 'No results recorded'
+    : (sysStat?.label ?? STATUS_LABEL[fallbackStatus])
+  const displayColor = !hasData
+    ? '#6B6650'
+    : (sysStat ? (SYS_LABEL_COLOR[sysStat.label] ?? '#5A7A50') : STATUS_COLOR[fallbackStatus])
+  const dialStatus: Status = !hasData
+    ? 'normal'
+    : (sysStat
+        ? (sysStat.label === 'Optimal' ? 'normal' : sysStat.label === 'Monitor' ? 'borderline' : 'abnormal')
+        : fallbackStatus)
+  const dialPct = !hasData
+    ? 0
+    : (sysStat
+        ? (sysStat.label === 'Optimal' ? 1 : sysStat.label === 'Monitor' ? 0.6 : 0.3)
+        : fallbackScore)
 
   return (
     <div className="bg-card rounded-2xl border border-border shadow-card mb-3 overflow-hidden">
@@ -375,7 +393,9 @@ function SystemAccordion({
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <span className="text-[11px] text-ink-2">{activeTests.length} markers</span>
+          <span className="text-[11px] text-ink-2">
+            {hasData ? `${activeTests.length} markers` : `${Object.keys(tests).length} test${Object.keys(tests).length !== 1 ? 's' : ''}`}
+          </span>
           <IconChevronDown
             size={16}
             strokeWidth={1.5}
@@ -437,6 +457,146 @@ function SystemAccordion({
   )
 }
 
+// ── Derived / computed indices ────────────────────────────────────────────────
+
+// Derived indices in display order (FIB-4, TyG, etc.)
+const DERIVED_ORDER = [
+  'FIB-4', 'TyG Index', 'HOMA-IR', 'Remnant Cholesterol',
+  'A/G Ratio', 'Corrected Calcium', 'LH/FSH Ratio',
+]
+
+function fmtRef(b: BiomarkerStatus): string {
+  const r = b.refRange
+  if (!r) return ''
+  if (r.low !== undefined && r.high !== undefined) return `${r.low}–${r.high}`
+  if (r.high !== undefined) return `<${r.high}`
+  if (r.low !== undefined) return `>${r.low}`
+  return ''
+}
+
+function DerivedRow({ b }: { b: BiomarkerStatus }) {
+  const [open, setOpen] = useState(false)
+  const val = b.value !== null ? String(b.value) : ''
+  const status = tierToStatus(b.tier)
+  const dotColor =
+    b.tier === 'critical' || b.tier === 'out_of_range' ? '#A63030'
+    : b.tier === 'watch' ? '#B8842A'
+    : b.tier === 'optimal' || b.tier === 'normal' ? '#5A7A50'
+    : '#9A9478'
+
+  const syntheticResult: BloodTestResult = {
+    value: val,
+    unit: b.unit,
+    refRange: fmtRef(b),
+    status,
+  }
+
+  return (
+    <div className="border-b border-border last:border-0">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center gap-2 py-3 text-left cursor-pointer"
+      >
+        <div className="flex-1 min-w-0">
+          <p className="text-[13px] font-medium text-ink leading-tight">{b.name}</p>
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className="text-[13px] tabular-nums font-medium" style={{ color: dotColor }}>
+            {val || '—'}
+          </span>
+          {b.unit && (
+            <span className="text-[11px]" style={{ color: dotColor, opacity: 0.8 }}>{b.unit}</span>
+          )}
+          {open
+            ? <IconChevronUp size={13} strokeWidth={1.5} className="text-ink-2" />
+            : <IconChevronDown size={13} strokeWidth={1.5} className="text-ink-2" />}
+        </div>
+      </button>
+      {open && (
+        <div className="pb-4 space-y-3">
+          <RangeBar result={syntheticResult} bioStat={b} />
+          {b.note && (
+            <p className="text-[11px] text-ink-2 italic leading-relaxed border-l-2 border-accent pl-2">
+              {b.note}
+            </p>
+          )}
+          {b.refer && (
+            <div className="flex items-start gap-1.5 rounded-lg px-3 py-2" style={{ background: '#FEF2F2' }}>
+              <IconAlertCircle size={13} strokeWidth={1.5} className="shrink-0 mt-0.5" style={{ color: '#A63030' }} />
+              <p className="text-[11px] leading-relaxed" style={{ color: '#A63030' }}>
+                This result warrants clinical follow-up.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function DerivedIndicesSection({
+  bioMarkerMap,
+  rawPanel,
+}: {
+  bioMarkerMap: Map<string, BiomarkerStatus>
+  rawPanel: Record<string, Record<string, BloodTestResult>>
+}) {
+  const [open, setOpen] = useState(false)
+
+  // Collect derived biomarkers not already present in the raw panel (as primary entries).
+  const rawNames = new Set(Object.values(rawPanel).flatMap(g => Object.keys(g)))
+
+  const derived = DERIVED_ORDER
+    .map(name => bioMarkerMap.get(name))
+    .filter((b): b is BiomarkerStatus =>
+      !!b && b.flags.includes('derived') && b.value !== null && !rawNames.has(b.name)
+    )
+
+  if (derived.length === 0) return null
+
+  const TIER_RANK: Record<string, number> = { critical: 5, out_of_range: 4, watch: 3, normal: 2, optimal: 1, unknown: 0 }
+  const worstTier = derived.reduce(
+    (acc, b) => (TIER_RANK[b.tier] ?? 0) > (TIER_RANK[acc] ?? 0) ? b.tier : acc,
+    'unknown' as string,
+  )
+  const dialStatus: 'normal' | 'borderline' | 'abnormal' =
+    worstTier === 'critical' || worstTier === 'out_of_range' ? 'abnormal'
+    : worstTier === 'watch' ? 'borderline'
+    : 'normal'
+
+  return (
+    <div className="bg-card rounded-2xl border border-border shadow-card mb-3 overflow-hidden">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center gap-4 px-5 py-4 text-left cursor-pointer"
+      >
+        <HealthDial pct={dialStatus === 'normal' ? 1 : dialStatus === 'borderline' ? 0.6 : 0.3} status={dialStatus} />
+        <div className="flex-1 min-w-0">
+          <p className="text-[15px] font-medium text-ink leading-snug">Computed Indices</p>
+          <p className="text-[12px] mt-0.5 font-medium text-ink-2">
+            Derived from your panel values
+          </p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-[11px] text-ink-2">{derived.length} indices</span>
+          <IconChevronDown
+            size={16} strokeWidth={1.5}
+            className={`text-ink-2 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+          />
+        </div>
+      </button>
+      {open && (
+        <div className="px-5 pb-5 border-t border-border">
+          <p className="text-[12px] text-ink-2 leading-relaxed pt-3 pb-3 border-b border-border">
+            These values are calculated automatically from your blood results — FIB-4 (liver fibrosis risk), TyG Index (insulin resistance), Remnant Cholesterol, A/G Ratio, and Corrected Calcium.
+          </p>
+          {derived.map(b => <DerivedRow key={b.name} b={b} />)}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 export default function LabsPage() {
@@ -479,6 +639,9 @@ export default function LabsPage() {
             />
           )
         })}
+
+        {/* Derived / computed indices */}
+        <DerivedIndicesSection bioMarkerMap={bioMarkerMap} rawPanel={bloodPanel} />
 
         {/* Resubmit */}
         <div className="mt-6 pt-6 border-t border-border">

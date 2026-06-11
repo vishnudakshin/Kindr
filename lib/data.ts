@@ -1,6 +1,6 @@
 import type { AppData, QuestionnaireResponses, BloodPanel, DayEntry, AssessmentCycle, ShareRecord, SectionId, RelationshipType } from './types'
 import { computeAll, scoreQuestionnaire } from './scoring'
-import { interpretPanel, type SystemStatus as InterpSysStatus } from './lab-interpretation'
+import { interpretPanel, type SystemStatus as InterpSysStatus, type BiomarkerStatus } from './lab-interpretation'
 import { buildFindings, type FindingsResult, type Finding } from './findings'
 import { buildReport, type KindrReport } from './report'
 export type { FindingsResult, Finding, KindrReport }
@@ -356,48 +356,79 @@ export const STATUS_META: Record<SystemStatus, { color: string; label: string }>
   urgent:  { color: '#7D1A1A', label: 'Urgent' },
 }
 
+// Body system entry id → the specific blood panel groups it covers.
+// Used for accurate per-entry marker counts and the dashboard detail sheet.
+export const BODY_SYSTEM_GROUPS: Record<string, string[]> = {
+  thyroid:      ['Thyroid'],
+  liver:        ['Liver Function'],
+  blood:        ['Complete Blood Count'],
+  vitamins:     ['Vitamins & Minerals'],
+  hormones:     ['Stress Hormones', 'Hormones · Optional'],
+  heart:        ['Lipids & Cardiac'],
+  kidney:       ['Kidney Function', 'Urinalysis'],
+  inflammation: ['Inflammation & Iron Profile'],
+  metabolic:    ['Metabolic'],
+}
+
 // Computed once at module init using the interpretation layer.
 const _labInterp = interpretPanel(mockData.bloodPanel, mockData.questionnaire.history)
 export const labInterp = _labInterp
-const _sysMap = new Map<string, InterpSysStatus>(
-  _labInterp.systems.map(s => [s.system, s])
+// Per-biomarker lookup used by deriveSystem and the dashboard sheet.
+const _bioMarkerMap = new Map<string, BiomarkerStatus>(
+  _labInterp.biomarkers.map(b => [b.name, b])
 )
 
+const _TIER_RANK: Record<string, number> = {
+  unknown: 0, optimal: 1, normal: 1, watch: 2, out_of_range: 3, critical: 4,
+}
+
+// Count markers and worst status for a given set of panel groups, ignoring
+// entries with no recorded value so the label card reflects actual results.
 function deriveSystem(
-  id:        string,
-  name:      string,
-  systemKey: string,   // BodySystem string from lab-config (e.g. 'Blood & immune')
-  anchor:    { x: number; y: number },
-  side:      'left' | 'right',
+  id:     string,
+  name:   string,
+  anchor: { x: number; y: number },
+  side:   'left' | 'right',
 ): BodySystem {
-  const interp = _sysMap.get(systemKey)
-  const label  = interp?.label ?? 'Optimal'
-  const status: SystemStatus =
-    label === 'Urgent'          ? 'urgent' :
-    label === 'Needs attention' ? 'action' :
-    label === 'Monitor'         ? 'monitor' : 'optimal'
-  return {
-    id, name, status,
-    markerCount:    interp?.measured ?? 0,
-    deficientCount: interp?.drivers?.length ?? 0,
-    anchor, side,
+  const groups = BODY_SYSTEM_GROUPS[id] ?? []
+  let markerCount = 0, deficientCount = 0, worstRank = 0
+
+  for (const group of groups) {
+    const tests = mockData.bloodPanel[group] ?? {}
+    for (const [testName, result] of Object.entries(tests)) {
+      if (!result.value) continue          // skip entries with no recorded value
+      markerCount++
+      const b = _bioMarkerMap.get(testName)
+      if (b) {
+        const rank = _TIER_RANK[b.tier] ?? 0
+        if (rank > worstRank) worstRank = rank
+        if (rank >= 2) deficientCount++   // watch or worse
+      }
+    }
   }
+
+  const status: SystemStatus =
+    worstRank >= 4 ? 'urgent' :
+    worstRank >= 3 ? 'action' :
+    worstRank >= 2 ? 'monitor' : 'optimal'
+
+  return { id, name, status, markerCount, deficientCount, anchor, side }
 }
 
 // Anchors calibrated against the 1024x1536 clean stipple asset.
 // Flip CALIBRATE=true in BodyModel to re-tune interactively.
 export const bodySystems: BodySystem[] = [
   // LEFT column — top to bottom
-  deriveSystem('thyroid',      'Thyroid',                    'Thyroid',             { x: 50, y: 21 }, 'left'),
-  deriveSystem('liver',        'Liver',                      'Liver',               { x: 44, y: 39 }, 'left'),
-  deriveSystem('blood',        'Blood',                      'Blood & immune',      { x: 44, y: 55 }, 'left'),
-  deriveSystem('vitamins',     'Vitamins & Minerals',        'Vitamins',            { x: 42, y: 70 }, 'left'),
+  deriveSystem('thyroid',      'Thyroid',                    { x: 50, y: 21 }, 'left'),
+  deriveSystem('liver',        'Liver',                      { x: 44, y: 39 }, 'left'),
+  deriveSystem('blood',        'Blood',                      { x: 44, y: 55 }, 'left'),
+  deriveSystem('vitamins',     'Vitamins & Minerals',        { x: 42, y: 70 }, 'left'),
   // RIGHT column — top to bottom
-  deriveSystem('hormones',     'Stress & Hormones',          'Hormones',            { x: 50, y: 10 }, 'right'),
-  deriveSystem('heart',        'Heart & Lipids',             'Heart',               { x: 52, y: 27 }, 'right'),
-  deriveSystem('kidney',       'Kidney & Urinalysis',        'Kidney',              { x: 56, y: 43 }, 'right'),
-  deriveSystem('inflammation', 'Inflammation & Iron Profile','Blood & immune',      { x: 56, y: 60 }, 'right'),
-  deriveSystem('metabolic',    'Metabolic',                  'Metabolic',           { x: 58, y: 80 }, 'right'),
+  deriveSystem('hormones',     'Stress & Hormones',          { x: 50, y: 10 }, 'right'),
+  deriveSystem('heart',        'Heart & Lipids',             { x: 52, y: 27 }, 'right'),
+  deriveSystem('kidney',       'Kidney & Urinalysis',        { x: 56, y: 43 }, 'right'),
+  deriveSystem('inflammation', 'Inflammation & Iron Profile',{ x: 56, y: 60 }, 'right'),
+  deriveSystem('metabolic',    'Metabolic',                  { x: 58, y: 80 }, 'right'),
 ]
 
 // ── Findings layer (Layer 3) ──────────────────────────────────────────────────

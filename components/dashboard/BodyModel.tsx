@@ -3,7 +3,7 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { IconX } from '@tabler/icons-react'
-import { bodySystems, STATUS_META, mockData, labInterp, type BodySystem, type SystemStatus } from '@/lib/data'
+import { bodySystems, STATUS_META, mockData, labInterp, BODY_SYSTEM_GROUPS, type BodySystem, type SystemStatus } from '@/lib/data'
 import type { BiomarkerStatus, BiomarkerTier } from '@/lib/lab-interpretation'
 
 // ── Dev calibration helper ────────────────────────────────────────────────────
@@ -16,17 +16,13 @@ const CARD_H     = 72
 const CARD_GAP   = 18
 const DOT_R      = 5
 
-// ── System id → blood panel group names ──────────────────────────────────────
-const SYSTEM_GROUPS: Record<string, string[]> = {
-  thyroid:      ['Thyroid'],
-  liver:        ['Liver Function'],
-  blood:        ['Complete Blood Count'],
-  vitamins:     ['Vitamins & Minerals'],
-  hormones:     ['Stress Hormones', 'Hormones · Optional'],
-  heart:        ['Lipids & Cardiac'],
-  kidney:       ['Kidney Function', 'Urinalysis'],
-  inflammation: ['Inflammation & Iron Profile'],
-  metabolic:    ['Metabolic'],
+// Groups that split further into labelled sub-sections within the sheet.
+// Keys are panel group names; values define the sub-section labels and tests.
+const SHEET_SUBGROUPS: Record<string, { label: string; tests: string[] }[]> = {
+  'Vitamins & Minerals': [
+    { label: 'Vitamins',  tests: ['Vitamin D (25-OH)', 'Folate (B9)', 'Vitamin B12'] },
+    { label: 'Minerals',  tests: ['Sodium', 'Potassium', 'Chloride', 'Bicarbonate', 'Calcium', 'Magnesium'] },
+  ],
 }
 
 // ── Marker status colour ──────────────────────────────────────────────────────
@@ -47,6 +43,65 @@ function markerLabel(sys: BodySystem): string {
 
 // ── System detail sheet ───────────────────────────────────────────────────────
 
+type SheetRow = { name: string; value: string; unit: string; b: BiomarkerStatus | undefined }
+type SheetSection = { label: string; rows: SheetRow[] }
+
+function buildSections(sysId: string, bioMarkerMap: Map<string, BiomarkerStatus>): SheetSection[] {
+  const groups = BODY_SYSTEM_GROUPS[sysId] ?? []
+  const panel = mockData.bloodPanel as Record<string, Record<string, { value: string; unit: string }>>
+
+  if (groups.length > 1) {
+    // Multiple groups → each group becomes a named section
+    return groups.map(group => ({
+      label: group,
+      rows: Object.entries(panel[group] ?? {}).map(([name, r]) => ({
+        name, value: r.value, unit: r.unit, b: bioMarkerMap.get(name),
+      })),
+    })).filter(s => s.rows.length > 0)
+  }
+
+  const group = groups[0] ?? ''
+  const tests = panel[group] ?? {}
+
+  if (SHEET_SUBGROUPS[group]) {
+    // Single group with defined sub-sections (e.g. Vitamins & Minerals)
+    const testMap = new Map(Object.entries(tests))
+    return SHEET_SUBGROUPS[group].map(sg => ({
+      label: sg.label,
+      rows: sg.tests
+        .filter(t => testMap.has(t))
+        .map(t => {
+          const r = testMap.get(t)!
+          return { name: t, value: r.value, unit: r.unit, b: bioMarkerMap.get(t) }
+        }),
+    })).filter(s => s.rows.length > 0)
+  }
+
+  // Single group, flat list
+  return [{
+    label: '',
+    rows: Object.entries(tests).map(([name, r]) => ({
+      name, value: r.value, unit: r.unit, b: bioMarkerMap.get(name),
+    })),
+  }]
+}
+
+function MarkerRow({ row }: { row: SheetRow }) {
+  const tier = row.b?.tier ?? 'unknown'
+  const color = row.value ? tierColor(tier) : '#9A9478'
+  return (
+    <div className="flex items-center gap-3 py-2.5 border-b border-border last:border-0">
+      <p className="flex-1 text-[13px] text-ink leading-snug">{row.name}</p>
+      <p className="text-[13px] font-semibold tabular-nums shrink-0" style={{ color }}>
+        {row.value || '—'}
+        {row.value && row.unit && (
+          <span className="text-[11px] font-normal ml-0.5 opacity-80">{row.unit}</span>
+        )}
+      </p>
+    </div>
+  )
+}
+
 function SystemSheet({
   sys,
   bioMarkerMap,
@@ -57,42 +112,27 @@ function SystemSheet({
   onClose: () => void
 }) {
   const meta = STATUS_META[sys.status]
-  const groups = SYSTEM_GROUPS[sys.id] ?? []
-
-  // Collect all raw panel entries for the relevant groups
-  const rows: Array<{ name: string; value: string; unit: string; b: BiomarkerStatus | undefined }> = []
-  for (const group of groups) {
-    const tests = (mockData.bloodPanel as Record<string, Record<string, { value: string; unit: string }>>)[group] ?? {}
-    for (const [name, result] of Object.entries(tests)) {
-      rows.push({ name, value: result.value, unit: result.unit, b: bioMarkerMap.get(name) })
-    }
-  }
+  const sections = buildSections(sys.id, bioMarkerMap)
+  const totalRows = sections.reduce((n, s) => n + s.rows.length, 0)
 
   return (
     <>
-      {/* Backdrop */}
       <motion.div
         key="bd"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
         transition={{ duration: 0.15 }}
         className="fixed inset-0 z-40"
         style={{ background: 'rgba(44,42,30,0.28)' }}
         onClick={onClose}
       />
-
-      {/* Sheet */}
       <motion.div
         key="sh"
-        initial={{ y: '100%' }}
-        animate={{ y: 0 }}
-        exit={{ y: '100%' }}
+        initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
         transition={{ type: 'spring', damping: 32, stiffness: 340 }}
         className="fixed inset-x-0 bottom-0 z-50 rounded-t-[20px] border-t border-border"
         style={{ background: '#FFFFFF', boxShadow: '0 -4px 32px rgba(44,42,30,0.12)' }}
       >
-        {/* Handle bar */}
+        {/* Handle */}
         <div className="flex justify-center pt-3 pb-0.5">
           <div className="w-9 h-[3px] rounded-full bg-border" />
         </div>
@@ -102,7 +142,7 @@ function SystemSheet({
           <div>
             <p className="text-[16px] font-semibold text-ink">{sys.name}</p>
             <p className="text-[12px] font-medium mt-0.5" style={{ color: meta.color }}>
-              {meta.label}
+              {meta.label} · {sys.markerCount} marker{sys.markerCount !== 1 ? 's' : ''}
             </p>
           </div>
           <button
@@ -115,38 +155,25 @@ function SystemSheet({
           </button>
         </div>
 
-        {/* Marker list */}
+        {/* Sections */}
         <div className="overflow-y-auto" style={{ maxHeight: '55vh' }}>
-          {rows.length === 0 ? (
-            <p className="text-[13px] text-ink-2 text-center py-8">
-              No results recorded yet.
-            </p>
+          {totalRows === 0 ? (
+            <p className="text-[13px] text-ink-2 text-center py-8">No results recorded yet.</p>
           ) : (
-            <div className="px-5 pb-8">
-              {rows.map(({ name, value, unit, b }) => {
-                const tier = b?.tier ?? 'unknown'
-                const color = value ? tierColor(tier) : '#9A9478'
-                const display = value || '—'
-                return (
-                  <div
-                    key={name}
-                    className="flex items-center gap-3 py-3 border-b border-border last:border-0"
-                  >
-                    <p className="flex-1 text-[13px] text-ink leading-snug">{name}</p>
-                    <p
-                      className="text-[13px] font-semibold tabular-nums shrink-0"
-                      style={{ color }}
-                    >
-                      {display}
-                      {value && unit && (
-                        <span className="text-[11px] font-normal ml-0.5 opacity-80">{unit}</span>
-                      )}
-                    </p>
-                  </div>
-                )
-              })}
-            </div>
+            sections.map((section, si) => (
+              <div key={section.label || si}>
+                {section.label && (
+                  <p className="px-5 pt-4 pb-1.5 text-[10px] tracking-[.09em] uppercase font-semibold text-ink-2 border-b border-border">
+                    {section.label}
+                  </p>
+                )}
+                <div className="px-5">
+                  {section.rows.map(row => <MarkerRow key={row.name} row={row} />)}
+                </div>
+              </div>
+            ))
           )}
+          <div className="h-6" />
         </div>
       </motion.div>
     </>

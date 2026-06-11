@@ -358,6 +358,7 @@ export const STATUS_META: Record<SystemStatus, { color: string; label: string }>
 
 // Computed once at module init using the interpretation layer.
 const _labInterp = interpretPanel(mockData.bloodPanel, mockData.questionnaire.history)
+export const labInterp = _labInterp
 const _sysMap = new Map<string, InterpSysStatus>(
   _labInterp.systems.map(s => [s.system, s])
 )

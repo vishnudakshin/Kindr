@@ -148,9 +148,25 @@ export function RangeBar({ result, bioStat }: RangeBarProps) {
     sageCenterPct = sageLeft + sageWidth / 2
   }
 
+  // ── Reference range label text ───────────────────────────────────────────────
+  let refRangeText: string | null = null
+  if (bioStat?.refRange) {
+    const { low, high } = bioStat.refRange
+    const u = bioStat.unit ? ` ${bioStat.unit}` : ''
+    if (low !== undefined && high !== undefined)
+      refRangeText = `Ref: ${fmt(low)} – ${fmt(high)}${u}`
+    else if (high !== undefined)
+      refRangeText = `Ref: < ${fmt(high)}${u}`
+    else if (low !== undefined)
+      refRangeText = `Ref: > ${fmt(low)}${u}`
+  } else if (result.refRange) {
+    const u = result.unit ? ` ${result.unit}` : ''
+    refRangeText = `Ref: ${result.refRange}${u}`
+  }
+
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
-    <div className="relative" style={{ paddingBottom: 18 }}>
+    <div className="relative" style={{ paddingBottom: refRangeText ? 32 : 18 }}>
       {/* Track + dot row */}
       <div className="relative" style={{ height: 12 }}>
         {/* Neutral hairline */}
@@ -182,19 +198,15 @@ export function RangeBar({ result, bioStat }: RangeBarProps) {
         />
       </div>
 
-      {/* Range labels */}
-      <div className="absolute inset-x-0" style={{ bottom: 0 }}>
+      {/* Track-bound labels (scale ends) */}
+      <div className="absolute inset-x-0" style={{ bottom: refRangeText ? 16 : 0 }}>
         <span className="absolute left-0 text-[9px] leading-none" style={{ color: NEUTRAL }}>
           {fmt(trackLo)}
         </span>
         {showOptLabel && sageWidth > 0 && (
           <span
             className="absolute text-[9px] leading-none whitespace-nowrap"
-            style={{
-              left: `${sageCenterPct}%`,
-              transform: 'translateX(-50%)',
-              color: SAGE,
-            }}
+            style={{ left: `${sageCenterPct}%`, transform: 'translateX(-50%)', color: SAGE }}
           >
             Optimal level
           </span>
@@ -203,6 +215,15 @@ export function RangeBar({ result, bioStat }: RangeBarProps) {
           {fmt(trackHi)}
         </span>
       </div>
+
+      {/* Reference range text */}
+      {refRangeText && (
+        <div className="absolute inset-x-0 flex justify-center" style={{ bottom: 0 }}>
+          <span className="text-[9px] leading-none" style={{ color: NEUTRAL }}>
+            {refRangeText}
+          </span>
+        </div>
+      )}
     </div>
   )
 }

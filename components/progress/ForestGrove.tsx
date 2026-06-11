@@ -267,9 +267,23 @@ export function ForestGrove({ currentCycle, previousCycles, today }: Props) {
     (a.col + a.row) - (b.col + b.row) || a.col - b.col,
   )
 
-  const cycleComplete = !!endDate && today >= endDate
-  const daysTended    = entries.filter(e => !e.isFuture && e.completed > 0).length
-  const fullDays      = entries.filter(e => !e.isFuture && e.completed >= e.total).length
+  const cycleComplete  = !!endDate && today >= endDate
+  const daysIntoCycle  = entries.filter(e => !e.isFuture).length
+  const daysTended     = entries.filter(e => !e.isFuture && e.completed > 0).length
+  const fullDays       = entries.filter(e => !e.isFuture && e.completed >= e.total).length
+
+  // Current streak: consecutive days going back from most recent past day where completed > 0
+  const streak = (() => {
+    const past = entries
+      .filter(e => !e.isFuture)
+      .sort((a, b) => b.date.localeCompare(a.date))
+    let s = 0
+    for (const e of past) {
+      if (e.completed > 0) s++
+      else break
+    }
+    return s
+  })()
 
   function toggle(entry: Entry) {
     setSelected(prev => prev?.date === entry.date ? null : entry)
@@ -279,7 +293,7 @@ export function ForestGrove({ currentCycle, previousCycles, today }: Props) {
     <div className="bg-bg-soft rounded-2xl border border-border p-5">
       <p className="text-[11px] tracking-[.07em] uppercase text-ink-2 mb-1">Your grove</p>
       <p className="text-[13px] text-ink-2 mb-4 leading-relaxed">
-        A grove of 90 days. Each tree, a day you tended to yourself.
+        Every day plants a tree at whatever stage you reached. Bare plots are simply days that passed — no judgement, just room to grow.
       </p>
 
       <div style={{ borderRadius: 12, overflow: 'hidden', background: '#182E14', marginBottom: 10 }}>
@@ -359,20 +373,30 @@ export function ForestGrove({ currentCycle, previousCycles, today }: Props) {
       )}
 
       {/* Stats */}
-      <div className="flex items-center gap-6 border-t border-border pt-4">
-        <div>
-          <p className="text-[10px] text-ink-2 mb-0.5">Days tended</p>
-          <p className="font-serif text-[20px] font-medium text-ink leading-none">{daysTended}</p>
+      <div className="border-t border-border pt-4 space-y-3">
+        <div className="flex gap-6">
+          <div>
+            <p className="text-[10px] text-ink-2 mb-0.5">Days into cycle</p>
+            <p className="font-serif text-[20px] font-medium text-ink leading-none">{daysIntoCycle}</p>
+          </div>
+          <div>
+            <p className="text-[10px] text-ink-2 mb-0.5">Trees planted</p>
+            <p className="font-serif text-[20px] font-medium text-ink leading-none">{daysTended}</p>
+          </div>
+          <div>
+            <p className="text-[10px] text-ink-2 mb-0.5">Day streak</p>
+            <p className="font-serif text-[20px] font-medium text-ink leading-none">{streak}</p>
+          </div>
         </div>
-        <div>
-          <p className="text-[10px] text-ink-2 mb-0.5">Full days</p>
-          <p className="font-serif text-[20px] font-medium text-ink leading-none">{fullDays}</p>
-        </div>
-        <div>
-          <p className="text-[10px] text-ink-2 mb-0.5">Chapter</p>
-          <p className="font-serif text-[20px] font-medium text-ink leading-none">
-            {previousCycles.length + 1}
-          </p>
+        <div className="flex gap-6">
+          <div>
+            <p className="text-[10px] text-ink-2 mb-0.5">Full days</p>
+            <p className="font-serif text-[20px] font-medium text-ink leading-none">{fullDays}</p>
+          </div>
+          <div>
+            <p className="text-[10px] text-ink-2 mb-0.5">Chapter</p>
+            <p className="font-serif text-[20px] font-medium text-ink leading-none">{previousCycles.length + 1}</p>
+          </div>
         </div>
       </div>
 

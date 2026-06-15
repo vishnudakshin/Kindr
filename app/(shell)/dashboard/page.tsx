@@ -10,7 +10,7 @@ export default function DashboardPage() {
 
   return (
     <>
-      <BrandHeader />
+      <BrandHeader href="/" />
       <div className="px-6 pt-4 pb-10">
 
         {/* Greeting */}

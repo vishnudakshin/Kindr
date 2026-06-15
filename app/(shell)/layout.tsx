@@ -1,7 +1,6 @@
 'use client'
 
 import Link from 'next/link'
-import { IconChevronLeft } from '@tabler/icons-react'
 import { TabBar } from '@/components/TabBar'
 import { useUserContext } from '@/lib/UserContext'
 
@@ -12,16 +11,17 @@ function PatientBanner() {
   if (!patient) return null
 
   return (
-    <div className="bg-ink flex items-center gap-2 px-4 py-2 shrink-0">
+    <div className="bg-ink flex items-center justify-end gap-2 px-4 py-2 shrink-0">
       <Link
         href="/patients"
-        className="flex items-center gap-1 text-[11px] text-[rgba(245,240,208,0.6)] hover:text-[#F5F0D0] transition-colors"
+        className="text-[11px] text-[rgba(245,240,208,0.6)] hover:text-[#F5F0D0] transition-colors"
       >
-        <IconChevronLeft size={12} strokeWidth={2} />
-        All patients
+        User list
       </Link>
       <span className="text-[rgba(245,240,208,0.3)] text-[11px]">·</span>
-      <span className="text-[11px] text-[#F5F0D0] font-medium truncate">{patient.name}</span>
+      <span className="text-[11px] text-[#F5F0D0] font-medium truncate max-w-[160px]">
+        {patient.name}
+      </span>
     </div>
   )
 }

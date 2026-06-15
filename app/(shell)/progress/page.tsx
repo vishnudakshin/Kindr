@@ -88,7 +88,7 @@ export default function ProgressPage() {
 
   return (
     <>
-      <BrandHeader />
+      <BrandHeader href="/" />
       <div className="px-6 pt-4 pb-10 flex flex-col gap-8">
 
         {/* Header */}

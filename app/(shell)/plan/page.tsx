@@ -7,7 +7,7 @@ import { dailyPlanV2 } from '@/lib/data'
 export default function PlanPage() {
   return (
     <>
-      <BrandHeader />
+      <BrandHeader href="/" />
       <div className="px-5 pt-4 pb-24">
         <p className="text-[11px] tracking-[.07em] uppercase text-ink-2 mb-1">Your plan</p>
         <h1 className="font-serif text-[30px] font-medium text-ink leading-snug mb-1">

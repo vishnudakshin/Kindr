@@ -75,7 +75,7 @@ export default function ResourcesPage() {
 
   return (
     <>
-      <BrandHeader />
+      <BrandHeader href="/" />
       <div className="px-6 pt-4 pb-10">
         <p className="text-[11px] tracking-[.07em] uppercase text-ink-2 mb-3">Resources</p>
         <h1 className="font-serif text-[32px] font-medium text-ink leading-snug mb-8">

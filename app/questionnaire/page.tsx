@@ -917,7 +917,7 @@ export default function QuestionnairePage() {
     saveQuestionnaire(answers)
     // Hard reload so module-level derived values (findings, report, plan) re-initialise
     // with the newly saved questionnaire data before the user proceeds.
-    window.location.href = '/diet/entry'
+    window.location.href = '/diet-assessment'
   }
 
   return (

@@ -6,6 +6,7 @@ import { BrandHeader } from '@/components/ui/BrandHeader'
 import { Button } from '@/components/ui/Button'
 import { mockData } from '@/lib/data'
 import { ShareReportButton } from '@/components/share/ShareReportButton'
+import { ACTIVITY_LABEL } from '@/lib/types'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -76,6 +77,59 @@ function SegmentedControl({
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
+// ── Nutrition assessment card ─────────────────────────────────────────────────
+
+function NutritionAssessmentCard() {
+  const da = mockData.dietAssessment
+
+  return (
+    <div className="bg-card rounded-2xl border border-border shadow-card p-5">
+      <p className="text-[11px] tracking-[.07em] uppercase text-ink-2 mb-4">
+        Nutrition assessment
+      </p>
+
+      {da ? (
+        <div className="flex flex-col gap-3 mb-4">
+          <div className="flex items-baseline gap-2">
+            <span className="font-serif text-[32px] font-medium text-ink leading-none">
+              {da.tdee.toLocaleString()}
+            </span>
+            <span className="text-[13px] text-ink-2">kcal / day</span>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { label: 'Protein', value: `${da.macros.protein_g}g` },
+              { label: 'Carbs',   value: `${da.macros.carbs_g}g`   },
+              { label: 'Fat',     value: `${da.macros.fat_g}g`     },
+            ].map(({ label, value }) => (
+              <div key={label} className="bg-bg-soft rounded-xl px-3 py-2.5 text-center">
+                <p className="text-[13px] font-medium text-ink">{value}</p>
+                <p className="text-[10px] text-ink-2 mt-0.5">{label}</p>
+              </div>
+            ))}
+          </div>
+          <p className="text-[11px] text-ink-2">
+            {ACTIVITY_LABEL[da.activityLevel]} · Goal: {da.goal.replace('_', ' ')} · Last assessed {da.completedDate}
+          </p>
+        </div>
+      ) : (
+        <p className="text-[13px] text-ink-2 leading-relaxed mb-4">
+          Not yet completed for this cycle. Run a diet assessment to set calorie and macro targets for this patient's plan.
+        </p>
+      )}
+
+      <button
+        onClick={() => { window.location.href = '/diet-assessment' }}
+        className="w-full py-3 rounded-full border border-ink text-ink text-[13px] font-medium hover:bg-bg transition-colors"
+      >
+        {da ? 'Update diet assessment' : 'Start diet assessment'}
+      </button>
+    </div>
+  )
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
+
 export default function ProfilePage() {
   const router = useRouter()
   const { user, currentScores } = mockData
@@ -131,7 +185,7 @@ export default function ProfilePage() {
 
   return (
     <>
-      <BrandHeader />
+      <BrandHeader href="/" />
       <div className="px-6 pt-4 pb-10 flex flex-col gap-5">
 
         {/* Avatar + name */}
@@ -167,12 +221,10 @@ export default function ProfilePage() {
           <FieldRow label="Medications & supplements">
             <ReadText value={medications} />
           </FieldRow>
-          <div className="pt-3">
-            <Button variant="outline" className="w-full" onClick={() => router.push('/diet/entry')}>
-              Update diet log
-            </Button>
-          </div>
         </SectionCard>
+
+        {/* ── Nutrition assessment ── */}
+        <NutritionAssessmentCard />
 
         {/* ── Preferences ── */}
         <SectionCard label="Preferences">

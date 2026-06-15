@@ -612,7 +612,7 @@ export default function LabsPage() {
 
   return (
     <>
-      <BrandHeader />
+      <BrandHeader href="/" />
       <div className="px-6 pt-5 pb-28">
         <p className="text-[11px] tracking-[.07em] uppercase text-ink-2 mb-1.5">Blood panel</p>
         <h1 className="font-serif text-[28px] font-medium text-ink leading-snug mb-2">

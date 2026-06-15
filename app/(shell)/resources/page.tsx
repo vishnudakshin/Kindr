@@ -1,3 +1,5 @@
+'use client'
+
 import {
   IconBook2, IconHeadphones, IconSparkles,
   IconSun, IconMoon, IconWind, IconChartBar, IconRun, IconMoonStars,

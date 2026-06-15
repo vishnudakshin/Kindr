@@ -915,7 +915,9 @@ export default function QuestionnairePage() {
   function handleFinish() {
     const answers: QuestionnaireResponses = { history, stress, activity, sleep, nutrition, cognition, wellbeing, symptoms }
     saveQuestionnaire(answers)
-    router.push('/diet/entry')
+    // Hard reload so module-level derived values (findings, report, plan) re-initialise
+    // with the newly saved questionnaire data before the user proceeds.
+    window.location.href = '/diet-assessment'
   }
 
   return (

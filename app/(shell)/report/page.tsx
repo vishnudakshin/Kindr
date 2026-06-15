@@ -1,3 +1,5 @@
+'use client'
+
 import { BrandHeader } from '@/components/ui/BrandHeader'
 import { WellnessReport } from '@/components/report/WellnessReport'
 

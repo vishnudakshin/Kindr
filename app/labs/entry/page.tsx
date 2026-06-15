@@ -172,7 +172,8 @@ export default function LabsPage() {
 
   function handleSave() {
     saveBloodPanel(panel)
-    router.push('/dashboard')
+    // Hard reload so bodySystems and labInterp re-initialise from the saved lab data.
+    window.location.href = '/dashboard'
   }
 
   return (

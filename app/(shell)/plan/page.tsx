@@ -1,3 +1,5 @@
+'use client'
+
 import { BrandHeader } from '@/components/ui/BrandHeader'
 import { PlanClient } from '@/components/plan/PlanClient'
 import { dailyPlanV2 } from '@/lib/data'

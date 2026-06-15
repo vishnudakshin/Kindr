@@ -1,3 +1,5 @@
+'use client'
+
 import { BrandHeader } from '@/components/ui/BrandHeader'
 import { WellnessRadar } from '@/components/dashboard/WellnessRadar'
 import { BodyModel } from '@/components/dashboard/BodyModel'

@@ -1,4 +1,4 @@
-import type { AppData, QuestionnaireResponses, BloodPanel, DayEntry, AssessmentCycle, ShareRecord, SectionId, RelationshipType, DietLog, DietaryGoal } from './types'
+import type { AppData, QuestionnaireResponses, BloodPanel, DayEntry, AssessmentCycle, ShareRecord, SectionId, RelationshipType, DietLog, DietaryGoal, DietAssessment, WellnessScores } from './types'
 import { computeAll, scoreQuestionnaire } from './scoring'
 import { interpretPanel, type SystemStatus as InterpSysStatus, type BiomarkerStatus } from './lab-interpretation'
 import { buildFindings, type FindingsResult, type Finding } from './findings'
@@ -82,6 +82,7 @@ export const grove90Mock: GroveDay[] = Array.from({ length: 90 }, (_, i) => {
 
 export function saveDietLog(log: DietLog): void {
   mockData.dietLog = log
+  _persistIfActive()
 }
 
 export function getDietLog(): DietLog | null {
@@ -90,14 +91,25 @@ export function getDietLog(): DietLog | null {
 
 export function saveDietaryGoal(goal: DietaryGoal): void {
   mockData.dietaryGoal = goal
+  _persistIfActive()
 }
 
 export function getDietaryGoal(): DietaryGoal {
   return mockData.dietaryGoal
 }
 
+export function saveDietAssessment(assessment: DietAssessment): void {
+  mockData.dietAssessment = assessment
+  _persistIfActive()
+}
+
+export function getDietAssessment(): DietAssessment | undefined {
+  return mockData.dietAssessment
+}
+
 export function saveBloodPanel(panel: BloodPanel): void {
   mockData.bloodPanel = panel
+  _persistIfActive()
 }
 
 export function getCycleDay(cycle: ReturnType<typeof makeDays>[number]['date'], startDate: string): number {
@@ -119,6 +131,7 @@ export function saveTodayEntry(tasksCompleted: number, tasksTotal: number): void
   } else {
     mockData.currentCycle.days.push({ date: today, tasksCompleted, tasksTotal })
   }
+  _persistIfActive()
 }
 
 export function saveQuestionnaire(answers: QuestionnaireResponses): void {
@@ -132,9 +145,50 @@ export function saveQuestionnaire(answers: QuestionnaireResponses): void {
   } else {
     mockData.scoreHistory.push({ date: today, scores: mockData.currentScores })
   }
+  _persistIfActive()
 }
 
-const questionnaire: QuestionnaireResponses = {
+// ── localStorage init helpers ─────────────────────────────────────────────────
+
+/** Flush the current mockData to localStorage under the active user ID. */
+export function _persistIfActive(): void {
+  if (typeof window === 'undefined') return
+  const id = window.localStorage.getItem('kindr_active_user')
+  if (!id) return
+  window.localStorage.setItem(`kindr_data_${id}`, JSON.stringify(mockData))
+  // Keep the user index summary in sync
+  try {
+    const raw = window.localStorage.getItem('kindr_users')
+    if (!raw) return
+    const users: Array<{ id: string; lastUpdated: string; overallScore: number; hasQuestionnaire: boolean; hasLabResults: boolean }> = JSON.parse(raw)
+    const u = users.find(x => x.id === id)
+    if (u) {
+      const h = mockData.questionnaire.history
+      u.lastUpdated      = new Date().toISOString().split('T')[0]
+      u.overallScore     = Math.round(mockData.currentScores.overall ?? 0)
+      u.hasQuestionnaire = !!(h.sex || h.heightCm || h.weightKg)
+      u.hasLabResults    = Object.values(mockData.bloodPanel).some(g =>
+        Object.values(g).some(r => r.value !== ''),
+      )
+      window.localStorage.setItem('kindr_users', JSON.stringify(users))
+    }
+  } catch {}
+}
+
+/** Load stored AppData for the active user from localStorage (client-side only). */
+function loadFromStorage(): AppData | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const id  = window.localStorage.getItem('kindr_active_user')
+    if (!id) return null
+    const raw = window.localStorage.getItem(`kindr_data_${id}`)
+    return raw ? (JSON.parse(raw) as AppData) : null
+  } catch { return null }
+}
+
+// ── Default questionnaire (used for demo user "Alex" and as blank template) ───
+
+const DEFAULT_QUESTIONNAIRE: QuestionnaireResponses = {
   history: {
     age: null, sex: '', ethnicity: 'south_asian', dietaryPreferences: [], unit: 'metric',
     heightCm: '', weightKg: '', heightFt: '', heightIn: '', weightLbs: '', waistCm: '',
@@ -155,9 +209,19 @@ const questionnaire: QuestionnaireResponses = {
   symptoms:  { physical: ['Headaches'], energyMood: ['Afternoon crashes', 'Low motivation'], otherSymptoms: '' },
 }
 
+const EMPTY_SCORES: WellnessScores = {
+  nutrition: 0, sleep: 0, activity: 0, cognition: 0, stress: 0, wellbeing: 0, overall: 0,
+}
+
+// questionnaire used for the DEFAULT mock build — replaced by stored data below
+const questionnaire: QuestionnaireResponses = DEFAULT_QUESTIONNAIRE
 const currentScores = computeAll(questionnaire)
 
-export const mockData: AppData = {
+export const mockData: AppData = (() => {
+  const stored = loadFromStorage()
+  if (stored) return stored
+  // Fall through to the hardcoded "Alex" demo below
+  return {
   user: {
     name: 'Alex',
     dateJoined: '2025-01-15',
@@ -339,6 +403,65 @@ export const mockData: AppData = {
   shareHistory: [] as ShareRecord[],
   dietLog: null,
   dietaryGoal: 'maintain',
+  }
+})()
+
+// ── New user factory ──────────────────────────────────────────────────────────
+
+/** Returns a blank AppData for a brand-new patient (no questionnaire data yet). */
+export function makeNewUserData(name: string): AppData {
+  const today           = new Date().toISOString().split('T')[0]
+  const reassessmentDate = (() => {
+    const d = new Date()
+    d.setDate(d.getDate() + 90)
+    return d.toISOString().split('T')[0]
+  })()
+
+  const emptyQ: QuestionnaireResponses = {
+    history: {
+      age: null, sex: '', ethnicity: 'general', dietaryPreferences: [], unit: 'metric',
+      heightCm: '', weightKg: '', heightFt: '', heightIn: '', weightLbs: '', waistCm: '',
+      bpSystolic: null, bpDiastolic: null,
+      conditions: ['None'], conditionsOther: '',
+      medications: 'None', medicationsText: '',
+      allergies: 'None known', allergiesText: '',
+      tobacco: 'Never', mentalHealth: 'No',
+      familyHistory: ['None known'], familyHistoryOther: '',
+      bowelStatus: 'Regular',
+    },
+    stress:    { items: Array(10).fill(2) },
+    activity:  { mvpaDays: 0, mvpaMinutes: 0, strengthDays: 0, sittingHours: 8 },
+    sleep:     { items: Array(8).fill(3) },
+    nutrition: { stc: Array(8).fill(1), auditC: Array(3).fill(0) },
+    cognition: { items: Array(4).fill(3) },
+    wellbeing: { items: Array(5).fill(3) },
+    symptoms:  { physical: [], energyMood: [], otherSymptoms: '' },
+  }
+
+  // Blood panel: same group/test structure but all values cleared
+  const emptyPanel: BloodPanel = Object.fromEntries(
+    Object.entries(mockData.bloodPanel).map(([g, tests]) => [
+      g,
+      Object.fromEntries(
+        Object.entries(tests).map(([t, r]) => [t, { ...r, value: '', status: undefined }]),
+      ),
+    ]),
+  )
+
+  return {
+    user:          { name, dateJoined: today, reassessmentDate },
+    questionnaire: emptyQ,
+    currentScores: EMPTY_SCORES,
+    bloodPanel:    emptyPanel,
+    planItems:     mockData.planItems,   // generic starter recommendations
+    resources:     mockData.resources,
+    scoreHistory:  [],
+    currentCycle:  { id: 'cycle-1', startDate: today, days: [] },
+    previousCycles: [],
+    shareHistory:  [],
+    dietLog:       null,
+    dietaryGoal:   'maintain',
+  }
 }
 
 export function saveShareRecord(
@@ -354,6 +477,7 @@ export function saveShareRecord(
     relationship: relationship || undefined,
   }
   mockData.shareHistory.unshift(record)
+  _persistIfActive()
   return record
 }
 
@@ -454,8 +578,8 @@ export const bodySystems: BodySystem[] = [
 ]
 
 // ── Findings layer (Layer 3) ──────────────────────────────────────────────────
-const _qScore = scoreQuestionnaire(questionnaire)
-export const findings: FindingsResult = buildFindings(_qScore, _labInterp, questionnaire.history)
+const _qScore = scoreQuestionnaire(mockData.questionnaire)
+export const findings: FindingsResult = buildFindings(_qScore, _labInterp, mockData.questionnaire.history)
 
 // ── Report layer (Layer 4) ────────────────────────────────────────────────────
 export const report: KindrReport = buildReport(findings, _labInterp, {
@@ -476,17 +600,18 @@ const _cycleStart = (() => {
   return d.toISOString().split('T')[0]
 })()
 // Derive activity baselines from questionnaire EVS for dose-ladder anchoring.
+const _mq = mockData.questionnaire
 const _baselines = {
   activityMinutesPerWeek:
-    questionnaire.activity.mvpaDays > 0 && questionnaire.activity.mvpaMinutes > 0
-      ? questionnaire.activity.mvpaDays * questionnaire.activity.mvpaMinutes
+    _mq.activity.mvpaDays > 0 && _mq.activity.mvpaMinutes > 0
+      ? _mq.activity.mvpaDays * _mq.activity.mvpaMinutes
       : null,
   stepsPerDay: null,
 }
 
 export const dailyPlanV2: DailyPlanV2 = buildDailyPlanV2({
   findings,
-  history: questionnaire.history,
+  history:  _mq.history,
   baselines: _baselines,
   preferences: { difficulty: 'standard' },
   interventionState: [],
@@ -494,14 +619,14 @@ export const dailyPlanV2: DailyPlanV2 = buildDailyPlanV2({
   cycleStartDate: _cycleStart,
   today: _today,
   // Data-driven Nourish personalisation
-  nutrition:  questionnaire.nutrition,
-  symptoms:   questionnaire.symptoms,
-  activity:   questionnaire.activity,
+  nutrition:  _mq.nutrition,
+  symptoms:   _mq.symptoms,
+  activity:   _mq.activity,
   dietLog:    mockData.dietLog,
   labInterp:  labInterp,
   // Data-driven Calm + Move personalisation
   questionnaireScore: _qScore,
-  stress:    questionnaire.stress,
-  sleep:     questionnaire.sleep,
-  wellbeing: questionnaire.wellbeing,
+  stress:    _mq.stress,
+  sleep:     _mq.sleep,
+  wellbeing: _mq.wellbeing,
 })

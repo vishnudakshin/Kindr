@@ -261,6 +261,49 @@ export interface PlanBaselines {
 
 export type DietaryGoal = 'lose_weight' | 'maintain' | 'gain_muscle'
 
+// ── Diet Assessment (one-time per cycle) ──────────────────────────────────────
+// Estimates daily calorie and macro targets from biometric + goal inputs.
+// Computed once per 90-day cycle; not a daily food diary.
+
+export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active'
+export type ProteinTarget = 'standard' | 'high' | 'athlete'
+export type CarbApproach  = 'low' | 'moderate' | 'standard'
+
+export const ACTIVITY_MULTIPLIER: Record<ActivityLevel, number> = {
+  sedentary:   1.2,
+  light:       1.375,
+  moderate:    1.55,
+  active:      1.725,
+  very_active: 1.9,
+}
+
+export const ACTIVITY_LABEL: Record<ActivityLevel, string> = {
+  sedentary:   'Sedentary (desk job, little exercise)',
+  light:       'Lightly active (1–2 days/week)',
+  moderate:    'Moderately active (3–4 days/week)',
+  active:      'Very active (5–6 days/week)',
+  very_active: 'Extra active (daily intense training)',
+}
+
+export interface DietAssessment {
+  completedDate:    string         // ISO date
+  cycleId:          string         // links to AssessmentCycle.id
+  age:              number         // years — used for Mifflin-St Jeor BMR
+  activityLevel:    ActivityLevel
+  goal:             DietaryGoal
+  proteinTarget:    ProteinTarget  // 0.8 | 1.6 | 2.2 g/kg body weight
+  carbApproach:     CarbApproach
+  mealCount:        number         // preferred meals per day (2–6)
+  // Calculated outputs (stored so the plan page can read them without recomputing)
+  bmr:              number         // kcal — Mifflin-St Jeor
+  tdee:             number         // kcal — BMR × activity × goal adjustment
+  macros: {
+    protein_g: number
+    carbs_g:   number
+    fat_g:     number
+  }
+}
+
 export interface AppData {
   user: UserProfile
   questionnaire: QuestionnaireResponses
@@ -274,4 +317,5 @@ export interface AppData {
   shareHistory: ShareRecord[]
   dietLog: DietLog | null
   dietaryGoal: DietaryGoal
+  dietAssessment?: DietAssessment
 }

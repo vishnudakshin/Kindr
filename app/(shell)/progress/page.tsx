@@ -1,3 +1,5 @@
+'use client'
+
 import type { FC } from 'react'
 import { BrandHeader } from '@/components/ui/BrandHeader'
 import { ScoreTrend } from '@/components/progress/ScoreTrend'

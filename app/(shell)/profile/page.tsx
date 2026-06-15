@@ -167,6 +167,11 @@ export default function ProfilePage() {
           <FieldRow label="Medications & supplements">
             <ReadText value={medications} />
           </FieldRow>
+          <div className="pt-3">
+            <Button variant="outline" className="w-full" onClick={() => router.push('/diet/entry')}>
+              Update diet log
+            </Button>
+          </div>
         </SectionCard>
 
         {/* ── Preferences ── */}

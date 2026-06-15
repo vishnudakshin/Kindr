@@ -24,29 +24,20 @@ type TablerIcon = FC<{ size?: number; className?: string; strokeWidth?: number }
 
 // ── Question text constants ───────────────────────────────────────────────────
 
-const PSS10_QUESTIONS = [
-  'How often have you been upset because of something that happened unexpectedly?',
-  'How often have you felt unable to control the important things in your life?',
-  'How often have you felt nervous and stressed?',
-  'How often have you felt confident about your ability to handle your personal problems?',
-  'How often have you felt that things were going your way?',
-  'How often have you been unable to cope with all the things you had to do?',
-  'How often have you been able to control irritations in your life?',
-  'How often have you felt that you were on top of things?',
-  'How often have you been angered because of things outside of your control?',
-  'How often have you felt difficulties piling up so high that you could not overcome them?',
+// 5 combined questions → 10 PSS-10 items internally (scoring.ts untouched).
+// Each question writes the same answer to all its `indices`; items [1] and [5] remain at 0.
+interface CombinedStressQ { text: string; positive: boolean; indices: number[] }
+const COMBINED_STRESS_QUESTIONS: CombinedStressQ[] = [
+  { text: "How often have you been upset or angered by things you couldn't control or predict?", positive: false, indices: [0, 8] },
+  { text: 'How often have you felt nervous or stressed?',                                        positive: false, indices: [2] },
+  { text: 'How often have you felt confident to handle the challenges in your life?',            positive: true,  indices: [3, 6] },
+  { text: 'How often have you felt that things were going well and you were on top of things?', positive: true,  indices: [4, 7] },
+  { text: 'How often have you felt that difficulties were piling up beyond what you could handle?', positive: false, indices: [9] },
 ]
-// indices 3,4,6,7 are positively worded (scoring.ts reverse-scores them internally)
-const PSS10_POSITIVE = new Set([3, 4, 6, 7])
-const PSS_LABELS = ['Never', 'Almost never', 'Sometimes', 'Fairly often', 'Very often']
+const PSS_LABELS = ['Never', 'Rarely', 'Sometimes', 'Often', 'Very often']
 
 // PROMIS Sleep Disturbance 8a — official item wording and per-item response options.
 // Items have mixed response scales; value stored is always the disturbance score (1=least, 5=most).
-
-interface SleepItemDef {
-  text: string
-  options: { label: string; value: number }[]
-}
 
 const _SLEEP_STANDARD = [
   { label: 'Not at all',   value: 1 },
@@ -63,55 +54,48 @@ const _SLEEP_REVERSED = [       // "Not at all" = most disturbance (5), "Very mu
   { label: 'Very much',    value: 1 },
 ]
 
-const SLEEP_ITEM_DEFS: SleepItemDef[] = [
-  // Sleep109 — quality scale, reversed
+// 5 combined questions → 8 PROMIS items internally (scoring.ts untouched).
+// Each question writes the same answer to all its `indices`; option scales match within each pair.
+interface CombinedSleepQ { text: string; options: { label: string; value: number }[]; indices: number[] }
+const COMBINED_SLEEP_QUESTIONS: CombinedSleepQ[] = [
   { text: 'My sleep quality was',
-    options: [
-      { label: 'Very poor', value: 5 },
-      { label: 'Poor',      value: 4 },
-      { label: 'Fair',      value: 3 },
-      { label: 'Good',      value: 2 },
-      { label: 'Very good', value: 1 },
-    ] },
-  { text: 'My sleep was refreshing.',                        options: _SLEEP_REVERSED  }, // Sleep116
-  { text: 'I had a problem with my sleep.',                  options: _SLEEP_STANDARD  }, // Sleep20
-  { text: 'I had difficulty falling asleep.',                options: _SLEEP_STANDARD  }, // Sleep44
-  { text: 'My sleep was restless.',                          options: _SLEEP_STANDARD  }, // Sleep108
-  { text: 'I tried hard to get to sleep.',                   options: _SLEEP_STANDARD  }, // Sleep72
-  { text: 'I worried about not being able to fall asleep.',  options: _SLEEP_STANDARD  }, // Sleep67
-  { text: 'I was satisfied with my sleep.',                  options: _SLEEP_REVERSED  }, // Sleep115
+    options: [{ label: 'Very poor', value: 5 }, { label: 'Poor', value: 4 }, { label: 'Fair', value: 3 }, { label: 'Good', value: 2 }, { label: 'Very good', value: 1 }],
+    indices: [0] },
+  { text: 'My sleep left me feeling refreshed and satisfied.',
+    options: _SLEEP_REVERSED, indices: [1, 7] },
+  { text: 'I had difficulty falling asleep.',
+    options: _SLEEP_STANDARD, indices: [2, 3] },
+  { text: 'My sleep was restless.',
+    options: _SLEEP_STANDARD, indices: [4] },
+  { text: 'I worried about not being able to fall asleep.',
+    options: _SLEEP_STANDARD, indices: [5, 6] },
 ]
 
-const STC_ITEMS = [
-  'How often do you eat breakfast?',
-  'How often do you eat 5+ servings of fruit and vegetables per day?',
-  'How often do you eat whole grains or high-fibre foods?',
-  'How often do you eat fast food or take-away?',
-  'How often do you eat fried or high-fat foods?',
-  'How often do you drink sugary beverages (juice, soda, sports drinks)?',
-  'How often do you eat sweets, pastries, or desserts?',
-  'How often do you eat processed or packaged snacks?',
-]
-const STC_RESPONSES: [string, string, string][] = [
-  ['Daily', 'Most days', 'Rarely/never'],
-  ['Daily', 'Sometimes', 'Rarely/never'],
-  ['Daily', 'Sometimes', 'Rarely/never'],
-  ['Rarely/never', '1–2×/week', '3+ times/week'],
-  ['Rarely/never', 'Sometimes', 'Often/daily'],
-  ['Rarely/never', 'Sometimes', 'Daily'],
-  ['Rarely/never', 'Sometimes', 'Daily'],
-  ['Rarely/never', 'Sometimes', 'Daily'],
+// 5 display questions → 8 STC items internally (scoring.ts untouched).
+// Combined questions write the same option index (0/1/2) to all their stc[] indices.
+interface StcDisplayItem { text: string; hint?: string; options: [string, string, string]; indices: number[] }
+const STC_DISPLAY: StcDisplayItem[] = [
+  { text: 'How often do you eat breakfast?',
+    options: ['Daily', 'Most days', 'Rarely/never'], indices: [0] },
+  { text: 'How often do you eat 5+ servings of fruit and vegetables per day?',
+    options: ['Daily', 'Sometimes', 'Rarely/never'], indices: [1] },
+  { text: 'How often do you eat whole grains or high-fibre foods?',
+    hint: 'e.g. oats, brown rice, millets (ragi, kambu, thinai), whole wheat bread, dal',
+    options: ['Daily', 'Sometimes', 'Rarely/never'], indices: [2] },
+  { text: 'How often do you eat fast food or processed food?',
+    options: ['Rarely/never', 'Sometimes', 'Often/daily'], indices: [3, 4, 7] },
+  { text: 'How often do you consume sugary beverages (juice, soda, sports drinks) & desserts?',
+    options: ['Rarely/never', 'Sometimes', 'Daily'], indices: [5, 6] },
 ]
 
+// AUDIT-C Q3 removed — Q2 (drink quantity) covers the binge dimension. auditC[2] stays at 0.
 const AUDITC_QUESTIONS = [
   'How often do you have a drink containing alcohol?',
   'How many standard drinks do you have on a typical day when you are drinking?',
-  'How often do you have 6 or more drinks on one occasion?',
 ]
 const AUDITC_RESPONSES = [
   ['Never', 'Monthly or less', '2–4×/month', '2–3×/week', '4+×/week'],
   ['1–2', '3–4', '5–6', '7–9', '10+'],
-  ['Never', 'Less than monthly', 'Monthly', 'Weekly', 'Daily or almost daily'],
 ]
 
 // PROMIS Cognitive Function Abilities 4a — official item wording (v2.0, Jan 2020).
@@ -205,7 +189,7 @@ const MED_OPTIONS = ['None', 'Medications only', 'Supplements only', 'Both']
 const ALLERGY_OPTIONS = ['None known', 'Food allergies', 'Medication allergies', 'Environmental', 'Multiple']
 const DIET_PREF_OPTIONS = ['Omnivore','Vegetarian','Vegan','Pescatarian','Keto','Paleo','Gluten-free','Dairy-free']
 const TOBACCO_OPTIONS = ['Never', 'Former smoker', 'Occasionally', 'Daily']
-const MENTAL_OPTIONS = ['No', 'Yes, currently managed', 'Yes, in the past', 'Prefer not to say']
+const MENTAL_OPTIONS = ['No', 'Yes', 'Prefer not to say']
 
 function calcBMI(h: HistoryResponses): number | null {
   let hm: number, wk: number
@@ -599,6 +583,15 @@ function Step1History({ history, setHistory }: { history: HistoryResponses; setH
           className="w-full mt-3 border border-border rounded-[10px] px-3 py-2.5 text-[13px] text-ink bg-card placeholder:text-ink-2/50 outline-none focus:border-ink resize-none min-h-[52px] transition-colors"
         />
       </QBlock>
+
+      {/* Bowel status */}
+      <QBlock question="How would you describe your usual bowel movements?" hint="Think about your typical pattern over the past month.">
+        <ChoiceGroup
+          options={['Regular', 'Irregular / variable', 'Often constipated', 'Loose or frequent']}
+          value={history.bowelStatus ?? ''}
+          onChange={v => setHistory({ ...history, bowelStatus: v as HistoryResponses['bowelStatus'] })}
+        />
+      </QBlock>
     </>
   )
 }
@@ -606,24 +599,29 @@ function Step1History({ history, setHistory }: { history: HistoryResponses; setH
 // ── Step 2: Stress (PSS-10) ────────────────────────────────────────────────────
 
 function Step2Stress({ stress, setStress }: { stress: StressResponses; setStress: (s: StressResponses) => void }) {
-  function setItem(i: number, v: number) {
-    setStress({ items: stress.items.map((x, j) => j === i ? v : x) })
+  function getCombined(qi: number) {
+    return stress.items[COMBINED_STRESS_QUESTIONS[qi].indices[0]]
+  }
+  function setCombined(qi: number, v: number) {
+    const next = [...stress.items]
+    for (const idx of COMBINED_STRESS_QUESTIONS[qi].indices) next[idx] = v
+    setStress({ items: next })
   }
   return (
     <>
       <StepHeader
-        category="Mental wellness · Stress (PSS-10)"
+        category="Mental wellness · Stress · PSS-10 condensed"
         title="How has stress been showing up lately?"
-        sub="Think about the past month. Select how often each statement has applied to you. Scores 0 = Never to 4 = Very often."
+        sub="Think about the past month. Select how often each statement has applied to you."
       />
-      {PSS10_QUESTIONS.map((q, i) => (
-        <QBlock key={i} question={q} hint={PSS10_POSITIVE.has(i) ? 'Positively worded — higher = more resilience' : undefined}>
+      {COMBINED_STRESS_QUESTIONS.map((cq, qi) => (
+        <QBlock key={qi} question={cq.text} hint={cq.positive ? 'Positively worded — higher = more resilience' : undefined}>
           <Slider
-            min={0} max={4} value={stress.items[i]}
-            onChange={v => setItem(i, v)}
+            min={0} max={4} value={getCombined(qi)}
+            onChange={v => setCombined(qi, v)}
             leftLabel="Never" rightLabel="Very often"
-            answerLabel={PSS_LABELS[stress.items[i]]}
-            icon={pssIcon(stress.items[i], PSS10_POSITIVE.has(i))}
+            answerLabel={PSS_LABELS[getCombined(qi)]}
+            icon={pssIcon(getCombined(qi), cq.positive)}
           />
         </QBlock>
       ))}
@@ -687,25 +685,30 @@ function Step3Activity({ activity, setActivity }: { activity: ActivityResponses;
 // ── Step 4: Sleep (PROMIS Sleep Disturbance 8a) ────────────────────────────────
 
 function Step4Sleep({ sleep, setSleep }: { sleep: SleepResponses; setSleep: (s: SleepResponses) => void }) {
-  function setItem(i: number, v: number) {
-    setSleep({ items: sleep.items.map((x, j) => j === i ? v : x) })
+  function getCombined(qi: number) {
+    return sleep.items[COMBINED_SLEEP_QUESTIONS[qi].indices[0]]
+  }
+  function setCombined(qi: number, v: number) {
+    const next = [...sleep.items]
+    for (const idx of COMBINED_SLEEP_QUESTIONS[qi].indices) next[idx] = v
+    setSleep({ items: next })
   }
   return (
     <>
       <StepHeader
-        category="Physical wellness · Sleep (PROMIS 8a)"
+        category="Physical wellness · Sleep · PROMIS 8a condensed"
         title="Let's talk about your sleep over the past week."
         sub="In the past 7 days, select the response that best describes your experience."
       />
-      {SLEEP_ITEM_DEFS.map((item, i) => (
-        <QBlock key={i} question={item.text}>
+      {COMBINED_SLEEP_QUESTIONS.map((cq, qi) => (
+        <QBlock key={qi} question={cq.text}>
           <div className="flex flex-wrap gap-2 mt-2.5">
-            {item.options.map(({ label, value }) => (
+            {cq.options.map(({ label, value }) => (
               <button
                 key={label}
-                onClick={() => setItem(i, value)}
+                onClick={() => setCombined(qi, value)}
                 className={`border rounded-[20px] px-3 py-1.5 text-[12px] cursor-pointer transition-colors
-                  ${sleep.items[i] === value
+                  ${getCombined(qi) === value
                     ? 'bg-bg border-ink text-ink'
                     : 'bg-card border-ink text-ink hover:bg-bg'}`}
               >
@@ -722,8 +725,13 @@ function Step4Sleep({ sleep, setSleep }: { sleep: SleepResponses; setSleep: (s: 
 // ── Step 5: Nutrition (STC + AUDIT-C) ─────────────────────────────────────────
 
 function Step5Nutrition({ nutrition, setNutrition }: { nutrition: NutritionResponses; setNutrition: (n: NutritionResponses) => void }) {
-  function setStc(i: number, v: number) {
-    setNutrition({ ...nutrition, stc: nutrition.stc.map((x, j) => j === i ? v : x) })
+  function getStc(di: number) {
+    return nutrition.stc[STC_DISPLAY[di].indices[0]]
+  }
+  function setStc(di: number, v: number) {
+    const next = [...nutrition.stc]
+    for (const idx of STC_DISPLAY[di].indices) next[idx] = v
+    setNutrition({ ...nutrition, stc: next })
   }
   function setAudit(i: number, v: number) {
     setNutrition({ ...nutrition, auditC: nutrition.auditC.map((x, j) => j === i ? v : x) })
@@ -731,30 +739,27 @@ function Step5Nutrition({ nutrition, setNutrition }: { nutrition: NutritionRespo
   return (
     <>
       <StepHeader
-        category="Nutrition pillar (STC + AUDIT-C)"
+        category="Nutrition · STC + AUDIT-C condensed"
         title="How's your relationship with food and drink?"
         sub="No judgement — just an honest snapshot of your typical patterns."
       />
       <p className="text-[11px] tracking-[.07em] uppercase text-ink-2 mb-3">Diet quality</p>
-      {STC_ITEMS.map((q, i) => {
-        const [opt0, opt1, opt2] = STC_RESPONSES[i]
-        return (
-          <QBlock key={i} question={q}>
-            <div className="flex flex-wrap gap-2 mt-2">
-              {([opt0, opt1, opt2] as string[]).map((label, vi) => (
-                <button
-                  key={vi}
-                  onClick={() => setStc(i, vi)}
-                  className={`border rounded-[20px] px-3 py-1.5 text-[12px] cursor-pointer transition-colors
-                    ${nutrition.stc[i] === vi ? 'bg-bg border-ink text-ink' : 'bg-card border-ink text-ink hover:bg-bg'}`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </QBlock>
-        )
-      })}
+      {STC_DISPLAY.map((item, di) => (
+        <QBlock key={di} question={item.text} hint={item.hint}>
+          <div className="flex flex-wrap gap-2 mt-2">
+            {item.options.map((label, vi) => (
+              <button
+                key={vi}
+                onClick={() => setStc(di, vi)}
+                className={`border rounded-[20px] px-3 py-1.5 text-[12px] cursor-pointer transition-colors
+                  ${getStc(di) === vi ? 'bg-bg border-ink text-ink' : 'bg-card border-ink text-ink hover:bg-bg'}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </QBlock>
+      ))}
       <p className="text-[11px] tracking-[.07em] uppercase text-ink-2 mt-4 mb-3">Alcohol (AUDIT-C)</p>
       {AUDITC_QUESTIONS.map((q, i) => (
         <QBlock key={i} question={q}>
@@ -910,7 +915,7 @@ export default function QuestionnairePage() {
   function handleFinish() {
     const answers: QuestionnaireResponses = { history, stress, activity, sleep, nutrition, cognition, wellbeing, symptoms }
     saveQuestionnaire(answers)
-    router.push('/labs/entry')
+    router.push('/diet/entry')
   }
 
   return (

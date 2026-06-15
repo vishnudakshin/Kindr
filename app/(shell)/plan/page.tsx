@@ -1,6 +1,6 @@
 import { BrandHeader } from '@/components/ui/BrandHeader'
 import { PlanClient } from '@/components/plan/PlanClient'
-import { dailyPlan } from '@/lib/data'
+import { dailyPlanV2 } from '@/lib/data'
 
 export default function PlanPage() {
   return (
@@ -14,7 +14,7 @@ export default function PlanPage() {
         <p className="text-[14px] text-ink-2 mt-1 mb-6 leading-relaxed">
           Small, consistent actions. Tick them off as you go.
         </p>
-        <PlanClient plan={dailyPlan} />
+        <PlanClient plan={dailyPlanV2} />
       </div>
     </>
   )

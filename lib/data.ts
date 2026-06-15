@@ -1,10 +1,12 @@
-import type { AppData, QuestionnaireResponses, BloodPanel, DayEntry, AssessmentCycle, ShareRecord, SectionId, RelationshipType } from './types'
+import type { AppData, QuestionnaireResponses, BloodPanel, DayEntry, AssessmentCycle, ShareRecord, SectionId, RelationshipType, DietLog, DietaryGoal } from './types'
 import { computeAll, scoreQuestionnaire } from './scoring'
 import { interpretPanel, type SystemStatus as InterpSysStatus, type BiomarkerStatus } from './lab-interpretation'
 import { buildFindings, type FindingsResult, type Finding } from './findings'
 import { buildReport, type KindrReport } from './report'
 import { buildDailyPlan, type DailyPlan, type PlanTask } from './plan'
-export type { FindingsResult, Finding, KindrReport, DailyPlan, PlanTask }
+import { buildDailyPlanV2 } from './intervention-engine'
+import type { DailyPlanV2, PlannedTask } from './intervention-schema'
+export type { FindingsResult, Finding, KindrReport, DailyPlan, PlanTask, DailyPlanV2, PlannedTask }
 
 // ── Cycle day generator ────────────────────────────────────────────────────────
 
@@ -78,6 +80,22 @@ export const grove90Mock: GroveDay[] = Array.from({ length: 90 }, (_, i) => {
   return { date: `grove-day-${i + 1}`, completion }
 })
 
+export function saveDietLog(log: DietLog): void {
+  mockData.dietLog = log
+}
+
+export function getDietLog(): DietLog | null {
+  return mockData.dietLog
+}
+
+export function saveDietaryGoal(goal: DietaryGoal): void {
+  mockData.dietaryGoal = goal
+}
+
+export function getDietaryGoal(): DietaryGoal {
+  return mockData.dietaryGoal
+}
+
 export function saveBloodPanel(panel: BloodPanel): void {
   mockData.bloodPanel = panel
 }
@@ -126,6 +144,7 @@ const questionnaire: QuestionnaireResponses = {
     allergies: 'None known', allergiesText: '',
     tobacco: 'Never', mentalHealth: 'No',
     familyHistory: ['None known'], familyHistoryOther: '',
+    bowelStatus: 'Regular',
   },
   stress:    { items: Array(10).fill(3) },
   activity:  { mvpaDays: 3, mvpaMinutes: 45, strengthDays: 2, sittingHours: 7 },
@@ -318,6 +337,8 @@ export const mockData: AppData = {
   } satisfies AssessmentCycle,
 
   shareHistory: [] as ShareRecord[],
+  dietLog: null,
+  dietaryGoal: 'maintain',
 }
 
 export function saveShareRecord(
@@ -444,3 +465,43 @@ export const report: KindrReport = buildReport(findings, _labInterp, {
 
 // ── Plan layer (Layer 5) ──────────────────────────────────────────────────────
 export const dailyPlan: DailyPlan = buildDailyPlan(findings)
+
+// ── Intervention engine v2 (Layer 5 v2) ──────────────────────────────────────
+// cycleStartDate is kept 20 days before today so the app renders in 'build' phase
+// (foundation=days1–14, build=15–42) — a sensible demo window.
+const _today = new Date().toISOString().split('T')[0]
+const _cycleStart = (() => {
+  const d = new Date(_today)
+  d.setDate(d.getDate() - 20)
+  return d.toISOString().split('T')[0]
+})()
+// Derive activity baselines from questionnaire EVS for dose-ladder anchoring.
+const _baselines = {
+  activityMinutesPerWeek:
+    questionnaire.activity.mvpaDays > 0 && questionnaire.activity.mvpaMinutes > 0
+      ? questionnaire.activity.mvpaDays * questionnaire.activity.mvpaMinutes
+      : null,
+  stepsPerDay: null,
+}
+
+export const dailyPlanV2: DailyPlanV2 = buildDailyPlanV2({
+  findings,
+  history: questionnaire.history,
+  baselines: _baselines,
+  preferences: { difficulty: 'standard' },
+  interventionState: [],
+  habitProgress: [],
+  cycleStartDate: _cycleStart,
+  today: _today,
+  // Data-driven Nourish personalisation
+  nutrition:  questionnaire.nutrition,
+  symptoms:   questionnaire.symptoms,
+  activity:   questionnaire.activity,
+  dietLog:    mockData.dietLog,
+  labInterp:  labInterp,
+  // Data-driven Calm + Move personalisation
+  questionnaireScore: _qScore,
+  stress:    questionnaire.stress,
+  sleep:     questionnaire.sleep,
+  wellbeing: questionnaire.wellbeing,
+})

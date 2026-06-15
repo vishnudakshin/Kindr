@@ -76,6 +76,7 @@ export interface HistoryResponses {
   mentalHealth: string
   familyHistory: string[]
   familyHistoryOther: string
+  bowelStatus?: 'Regular' | 'Irregular / variable' | 'Often constipated' | 'Loose or frequent'
 }
 
 export interface SymptomsResponses {
@@ -225,6 +226,41 @@ export interface ShareRecord {
   relationship?: RelationshipType
 }
 
+// ── Diet log ──────────────────────────────────────────────────────────────────
+// Captured on the diet entry page (separate from the questionnaire flow).
+
+export interface MacroNutrients {
+  protein_g: number
+  fat_g:     number
+  carb_g:    number
+  fiber_g:   number
+}
+
+export interface DietMeal {
+  selections: Record<string, string>  // foodId → portion label
+  freeText: string
+  freeTextKcal?:   number             // LLM-estimated kcal (cleared on text edit)
+  freeTextMacros?: MacroNutrients     // LLM-estimated macros (cleared on text edit)
+}
+
+export interface DietLog {
+  breakfast:  DietMeal
+  midMorning: DietMeal
+  lunch:      DietMeal
+  evening:    DietMeal
+  dinner:     DietMeal
+  beverages:  DietMeal
+  supplements: string
+}
+
+// Baseline activity metrics derived from questionnaire (EVS), used for dose-ladder anchoring.
+export interface PlanBaselines {
+  activityMinutesPerWeek: number | null  // mvpaDays × mvpaMinutes
+  stepsPerDay: number | null             // self-reported or device-synced; null = unknown
+}
+
+export type DietaryGoal = 'lose_weight' | 'maintain' | 'gain_muscle'
+
 export interface AppData {
   user: UserProfile
   questionnaire: QuestionnaireResponses
@@ -236,4 +272,6 @@ export interface AppData {
   currentCycle: AssessmentCycle
   previousCycles: AssessmentCycle[]
   shareHistory: ShareRecord[]
+  dietLog: DietLog | null
+  dietaryGoal: DietaryGoal
 }

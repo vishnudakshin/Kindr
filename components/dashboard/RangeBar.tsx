@@ -41,12 +41,21 @@ const ZONE_LABELS: Record<string, [string, string, string]> = {
   'ALT':               ['optimal',     'borderline',   'high'      ],
   'AST':               ['optimal',     'borderline',   'high'      ],
   'GGT':               ['optimal',     'borderline',   'high'      ],
-  'NLR':               ['optimal',     'borderline',   'high'      ],
   'Lp(a)':             ['optimal',     'borderline',   'high'      ],
   // two_sided [RED | … | GREEN | … | RED]
   'TSH':               ['too low',     'optimal',      'too high'  ],
   'Ferritin':          ['low',         'optimal',      'elevated'  ],
   'Morning Cortisol':  ['too low',     'optimal',      'too high'  ],
+  'NLR':               ['too low',     'optimal',      'high'      ],
+  'White Blood Cells': ['too low',     'normal',       'too high'  ],
+  'Absolute Neutrophil Count': ['too low', 'normal',   'too high'  ],
+  'Neutrophils':       ['too low',     'normal',       'too high'  ],
+  'Lymphocytes':       ['too low',     'normal',       'too high'  ],
+  'Monocytes':         ['too low',     'normal',       'too high'  ],
+  'Eosinophils':       ['low',         'normal',       'elevated'  ],
+  'MCV':               ['low',         'normal',       'elevated'  ],
+  'MCH':               ['low',         'normal',       'elevated'  ],
+  'MCHC':              ['low',         'normal',       'elevated'  ],
 }
 
 function getLabels(name: string, direction: Direction): [string, string, string] {
@@ -231,25 +240,36 @@ export function RangeBar({ result, bioStat }: RangeBarProps) {
   // ── Resolve track bounds & zones ─────────────────────────────────────────
   let trackLo: number, trackHi: number, zones: Zone[]
 
-  if (refRange || optRange) {
+  // Scale-mismatch guard: if the value is >100× the largest registry bound the user
+  // likely entered data in a different unit (e.g. cells/µL vs ×10⁹/L). Fall back to
+  // the lab's own refRange string so the bar renders correctly.
+  const maxRegistryBound = Math.max(
+    refRange?.high ?? 0, refRange?.low ?? 0,
+    optRange?.high ?? 0, optRange?.low ?? 0,
+  )
+  const scaleMismatch =
+    (refRange || optRange) &&
+    maxRegistryBound > 0 &&
+    Math.abs(numericValue) > maxRegistryBound * 100
+
+  if ((refRange || optRange) && !scaleMismatch) {
     const track = computeTrack(numericValue, refRange, optRange, direction)
     trackLo = track.lo
     trackHi = track.hi
     const labels = getLabels(bioStat?.name ?? '', direction)
     zones = buildZones(direction, refRange, optRange, trackLo, trackHi, labels)
   } else {
-    // Fallback: parse the refRange string.
+    // Fallback: parse the lab's own refRange string for zone boundaries.
     const fb = parseLegacy(result.refRange)
     if (!fb) return null
     trackLo = fb.lo
     trackHi = fb.hi
     zones = [
-      { lo: trackLo,  hi: fb.refLo,  color: C_BAD,  label: 'too low' },  // left  RED
-      { lo: fb.refLo, hi: fb.refHi,  color: C_GOOD, label: 'normal'  },  // GREEN
-      { lo: fb.refHi, hi: trackHi,   color: C_BAD,  label: 'high'    },  // right RED
+      { lo: trackLo,  hi: fb.refLo,  color: C_BAD,  label: 'too low' },
+      { lo: fb.refLo, hi: fb.refHi,  color: C_GOOD, label: 'normal'  },
+      { lo: fb.refHi, hi: trackHi,   color: C_BAD,  label: 'high'    },
     ].filter(z => z.hi > z.lo)
   }
-
   if (!zones.length) return null
 
   const trackSpan = trackHi - trackLo

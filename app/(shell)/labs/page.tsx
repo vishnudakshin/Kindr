@@ -22,9 +22,9 @@ const STATUS_COLOR: Record<Status, string> = {
 }
 
 const STATUS_LABEL: Record<Status, string> = {
-  normal:     'All clear',
+  normal:     'Optimal',
   borderline: 'Needs attention',
-  abnormal:   'Out of range',
+  abnormal:   'Urgent',
 }
 
 const SYS_LABEL_COLOR: Record<string, string> = {
@@ -45,6 +45,7 @@ const NARRATIVES: Record<string, string> = {
   'Thyroid':                       'TSH, FT3, and FT4 are all within normal range.',
   'Urinalysis':                    'All urinalysis markers are normal.',
   'Stress Hormones':               'Cortisol and DHEA-S are both within healthy ranges.',
+  // These two are placeholder-only; shown only when no data is recorded (see accordion logic).
   'Hormones · Optional':           'No optional hormone values recorded yet.',
   'Allergy Panel - IgE':           'No allergy values recorded yet. Total IgE helps screen for overall allergic sensitisation.',
 }
@@ -380,18 +381,14 @@ function SystemAccordion({
   const fallbackStatus = aggregateStatus(activeMap)
   const fallbackScore  = healthScore(activeMap)
 
-  const displayLabel = !hasData
-    ? 'No results recorded'
-    : (sysStat?.label ?? STATUS_LABEL[fallbackStatus])
-  const displayColor = !hasData
-    ? '#6B6650'
-    : (sysStat ? (SYS_LABEL_COLOR[sysStat.label] ?? '#5A7A50') : STATUS_COLOR[fallbackStatus])
-  const dialStatus: Status = !hasData
-    ? 'normal'
-    : (sysStat
-        ? (sysStat.label === 'Optimal' ? 'normal' : sysStat.label === 'Monitor' ? 'borderline' : 'abnormal')
-        : fallbackStatus)
   const dialPct = !hasData ? 0 : computeDialPct(activeTests, bioMarkerMap)
+  // Threshold: 100% → Optimal (green), 40–99% → Needs attention (amber), <40% → Urgent (red)
+  const dialStatus: Status = !hasData ? 'normal'
+    : dialPct >= 1.0 ? 'normal'
+    : dialPct >= 0.4 ? 'borderline'
+    : 'abnormal'
+  const displayLabel = !hasData ? 'No results recorded' : STATUS_LABEL[dialStatus]
+  const displayColor = !hasData ? '#6B6650' : STATUS_COLOR[dialStatus]
 
   return (
     <div className="bg-card rounded-2xl border border-border shadow-card mb-3 overflow-hidden">
@@ -422,7 +419,8 @@ function SystemAccordion({
       {/* Expanded body */}
       {open && (
         <div className="px-5 pb-5 border-t border-border">
-          {NARRATIVES[name] && (
+          {/* Placeholder-only narratives (Hormones Optional, Allergy) are hidden when data exists */}
+          {NARRATIVES[name] && (hasData ? name !== 'Hormones · Optional' && name !== 'Allergy Panel - IgE' : true) && (
             <p className="text-[12px] text-ink-2 leading-relaxed pt-3 pb-3 border-b border-border">
               {NARRATIVES[name]}
             </p>
@@ -437,9 +435,16 @@ function SystemAccordion({
           )}
           {SUBGROUPS[name]
             ? SUBGROUPS[name].map(sg => {
+                // Show tests that have values OR that are in the panel but not yet entered (shows '—').
+                // This ensures expected markers like ESR always appear in their subgroup heading.
                 const sgTests = sg.tests
-                  .map(t => activeTests.find(([n]) => n === t))
-                  .filter((x): x is [string, BloodTestResult] => !!x)
+                  .map(t => {
+                    const withValue = activeTests.find(([n]) => n === t)
+                    if (withValue) return withValue
+                    const stub = tests[t]
+                    return stub !== undefined ? ([t, stub] as [string, BloodTestResult]) : null
+                  })
+                  .filter((x): x is [string, BloodTestResult] => x !== null)
                 if (sgTests.length === 0) return null
                 return (
                   <div key={sg.label}>

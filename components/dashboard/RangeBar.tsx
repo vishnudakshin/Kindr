@@ -10,19 +10,21 @@ const C_BAD     = '#C05050'  // muted red    — out of range / bad
 const C_NEUTRAL = '#9A9478'  // parchment    — unknown / fallback
 
 // ── Per-marker zone labels ────────────────────────────────────────────────────
-// Order: [bad_label, watch_label, good_label]
-// For low_bad  the bar renders left→right as: bad | watch | good
-// For high_bad the bar renders left→right as: good | watch | bad
+// Labels are always LEFT-TO-RIGHT for the rendered bar:
+//   high_bad  → GREEN | AMBER | RED  : labels = [green_label, amber_label, red_label]
+//   low_bad   → RED | AMBER | GREEN  : labels = [red_label,   amber_label, green_label]
+//   two_sided → RED | … | GREEN | … | RED : labels = [left_red, center_green, right_red]
 
 const ZONE_LABELS: Record<string, [string, string, string]> = {
+  // low_bad  [RED | AMBER | GREEN]
   'Vitamin D (25-OH)': ['deficient',   'insufficient', 'optimal'   ],
-  'Ferritin':          ['low',         'borderline',   'optimal'   ],
   'Vitamin B12':       ['low',         'borderline',   'optimal'   ],
   'Folate (B9)':       ['low',         'borderline',   'optimal'   ],
   'Haemoglobin':       ['low',         'borderline',   'optimal'   ],
   'Haematocrit':       ['low',         'borderline',   'optimal'   ],
   'HDL':               ['low',         'borderline',   'protective'],
   'eGFR':              ['low',         'borderline',   'optimal'   ],
+  // high_bad [GREEN | AMBER | RED]
   'Fasting Insulin':   ['optimal',     'at risk',      'high'      ],
   'HOMA-IR':           ['optimal',     'at risk',      'high'      ],
   'Fasting Glucose':   ['optimal',     'borderline',   'high'      ],
@@ -35,22 +37,23 @@ const ZONE_LABELS: Record<string, [string, string, string]> = {
   'TG/HDL Ratio':      ['optimal',     'borderline',   'high'      ],
   'TC/HDL Ratio':      ['optimal',     'borderline',   'high'      ],
   'ApoB':              ['optimal',     'borderline',   'high'      ],
-  'TSH':               ['low',         'optimal',      'high'      ],
   'Uric Acid':         ['optimal',     'borderline',   'high'      ],
   'ALT':               ['optimal',     'borderline',   'high'      ],
   'AST':               ['optimal',     'borderline',   'high'      ],
   'GGT':               ['optimal',     'borderline',   'high'      ],
-  'Creatinine':        ['optimal',     'borderline',   'high'      ],
   'NLR':               ['optimal',     'borderline',   'high'      ],
   'Lp(a)':             ['optimal',     'borderline',   'high'      ],
-  'Morning Cortisol':  ['low',         'borderline',   'optimal'   ],
+  // two_sided [RED | … | GREEN | … | RED]
+  'TSH':               ['too low',     'optimal',      'too high'  ],
+  'Ferritin':          ['low',         'optimal',      'elevated'  ],
+  'Morning Cortisol':  ['too low',     'optimal',      'too high'  ],
 }
 
 function getLabels(name: string, direction: Direction): [string, string, string] {
   if (ZONE_LABELS[name]) return ZONE_LABELS[name]
   if (direction === 'low_bad')  return ['low',     'borderline', 'optimal']
   if (direction === 'high_bad') return ['optimal', 'borderline', 'high']
-  return ['low', 'optimal', 'high']
+  return ['too low', 'optimal', 'too high']  // two_sided default
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -75,43 +78,45 @@ function buildZones(
   opt: NumericRange | null,
   trackLo: number,
   trackHi: number,
-  labels: [string, string, string],
+  labels: [string, string, string],  // positional: [left_zone, middle_zone, right_zone]
 ): Zone[] {
-  const [lBad, lWatch, lGood] = labels
-
   if (direction === 'high_bad') {
+    // left=GREEN(labels[0]) | middle=AMBER(labels[1]) | right=RED(labels[2])
     const optHi = opt?.high
     const refHi = ref?.high
     if (optHi !== undefined && refHi !== undefined) {
       return [
-        { lo: trackLo, hi: optHi,   color: C_GOOD,  label: lGood  },
-        { lo: optHi,   hi: refHi,   color: C_WATCH, label: lWatch },
-        { lo: refHi,   hi: trackHi, color: C_BAD,   label: lBad   },
+        { lo: trackLo, hi: optHi,   color: C_GOOD,  label: labels[0] },
+        { lo: optHi,   hi: refHi,   color: C_WATCH, label: labels[1] },
+        { lo: refHi,   hi: trackHi, color: C_BAD,   label: labels[2] },
       ].filter(z => z.hi > z.lo)
     }
     if (refHi !== undefined) return [
-      { lo: trackLo, hi: refHi,   color: C_GOOD, label: 'normal' },
-      { lo: refHi,   hi: trackHi, color: C_BAD,  label: 'high'   },
+      { lo: trackLo, hi: refHi,   color: C_GOOD, label: labels[0] },
+      { lo: refHi,   hi: trackHi, color: C_BAD,  label: labels[2] },
     ].filter(z => z.hi > z.lo)
   }
 
   if (direction === 'low_bad') {
+    // left=RED(labels[0]) | middle=AMBER(labels[1]) | right=GREEN(labels[2])
     const refLo = ref?.low
     const optLo = opt?.low
     if (refLo !== undefined && optLo !== undefined && optLo >= refLo) {
       return [
-        { lo: trackLo, hi: refLo,   color: C_BAD,   label: lBad   },
-        { lo: refLo,   hi: optLo,   color: C_WATCH, label: lWatch },
-        { lo: optLo,   hi: trackHi, color: C_GOOD,  label: lGood  },
+        { lo: trackLo, hi: refLo,   color: C_BAD,   label: labels[0] },
+        { lo: refLo,   hi: optLo,   color: C_WATCH, label: labels[1] },
+        { lo: optLo,   hi: trackHi, color: C_GOOD,  label: labels[2] },
       ].filter(z => z.hi > z.lo)
     }
     if (refLo !== undefined) return [
-      { lo: trackLo, hi: refLo,   color: C_BAD,  label: 'low'    },
-      { lo: refLo,   hi: trackHi, color: C_GOOD, label: 'normal' },
+      { lo: trackLo, hi: refLo,   color: C_BAD,  label: labels[0] },
+      { lo: refLo,   hi: trackHi, color: C_GOOD, label: labels[2] },
     ].filter(z => z.hi > z.lo)
   }
 
   if (direction === 'two_sided') {
+    // left=RED(labels[0]) | … | GREEN(labels[1]) | … | right=RED(labels[2])
+    // AMBER zones between ref and opt are labelled 'borderline' (usually narrow → hidden)
     const refLo = ref?.low
     const refHi = ref?.high
     const optLo = opt?.low
@@ -119,19 +124,19 @@ function buildZones(
     const zones: Zone[] = []
 
     if (refLo !== undefined) {
-      zones.push({ lo: trackLo, hi: refLo, color: C_BAD, label: lBad })
+      zones.push({ lo: trackLo, hi: refLo, color: C_BAD, label: labels[0] })
       if (optLo !== undefined && optLo > refLo) {
-        zones.push({ lo: refLo, hi: optLo, color: C_WATCH, label: lWatch })
+        zones.push({ lo: refLo, hi: optLo, color: C_WATCH, label: 'borderline' })
       }
     }
     const gLo = optLo ?? refLo ?? trackLo
     const gHi = optHi ?? refHi ?? trackHi
-    if (gHi > gLo) zones.push({ lo: gLo, hi: gHi, color: C_GOOD, label: lGood })
+    if (gHi > gLo) zones.push({ lo: gLo, hi: gHi, color: C_GOOD, label: labels[1] })
     if (refHi !== undefined) {
       if (optHi !== undefined && optHi < refHi) {
-        zones.push({ lo: optHi, hi: refHi, color: C_WATCH, label: lWatch })
+        zones.push({ lo: optHi, hi: refHi, color: C_WATCH, label: 'borderline' })
       }
-      zones.push({ lo: refHi, hi: trackHi, color: C_BAD, label: lBad })
+      zones.push({ lo: refHi, hi: trackHi, color: C_BAD, label: labels[2] })
     }
     return zones.filter(z => z.hi > z.lo)
   }
@@ -239,12 +244,10 @@ export function RangeBar({ result, bioStat }: RangeBarProps) {
     trackLo = fb.lo
     trackHi = fb.hi
     zones = [
-      { lo: fb.refLo, hi: fb.refHi,   color: C_GOOD, label: 'normal' },
-      { lo: fb.refLo, hi: trackLo,    color: C_BAD,  label: 'low'    },  // may be empty
-      { lo: fb.refHi, hi: trackHi,    color: C_BAD,  label: 'high'   },  // may be empty
-    ]
-      .filter(z => z.hi > z.lo)
-      .sort((a, b) => a.lo - b.lo)
+      { lo: trackLo,  hi: fb.refLo,  color: C_BAD,  label: 'too low' },  // left  RED
+      { lo: fb.refLo, hi: fb.refHi,  color: C_GOOD, label: 'normal'  },  // GREEN
+      { lo: fb.refHi, hi: trackHi,   color: C_BAD,  label: 'high'    },  // right RED
+    ].filter(z => z.hi > z.lo)
   }
 
   if (!zones.length) return null

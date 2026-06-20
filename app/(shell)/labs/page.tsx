@@ -85,6 +85,25 @@ function healthScore(tests: Record<string, BloodTestResult>): number {
   return weighted / withStatus.length
 }
 
+// Compute dial percentage from interpreted biomarker tiers (more accurate than raw status).
+function computeDialPct(
+  activeTests: [string, BloodTestResult][],
+  bioMarkerMap: Map<string, BiomarkerStatus>,
+): number {
+  const scoreable = activeTests.filter(([n]) => {
+    const b = bioMarkerMap.get(n)
+    return b && b.tier !== 'unknown'
+  })
+  if (!scoreable.length) return healthScore(Object.fromEntries(activeTests))
+  const score = scoreable.reduce((sum, [n]) => {
+    const tier = bioMarkerMap.get(n)!.tier
+    if (tier === 'optimal' || tier === 'normal') return sum + 1
+    if (tier === 'watch') return sum + 0.5
+    return sum
+  }, 0)
+  return score / scoreable.length
+}
+
 // ── Dot grid (overview card) ─────────────────────────────────────────────────
 
 function DotGrid({ count, color }: { count: number; color: string }) {
@@ -372,11 +391,7 @@ function SystemAccordion({
     : (sysStat
         ? (sysStat.label === 'Optimal' ? 'normal' : sysStat.label === 'Monitor' ? 'borderline' : 'abnormal')
         : fallbackStatus)
-  const dialPct = !hasData
-    ? 0
-    : (sysStat
-        ? (sysStat.label === 'Optimal' ? 1 : sysStat.label === 'Monitor' ? 0.6 : 0.3)
-        : fallbackScore)
+  const dialPct = !hasData ? 0 : computeDialPct(activeTests, bioMarkerMap)
 
   return (
     <div className="bg-card rounded-2xl border border-border shadow-card mb-3 overflow-hidden">
@@ -610,6 +625,10 @@ export default function LabsPage() {
     labInterp.systems.map(s => [s.system, s])
   )
 
+  // Only count markers from the actual panel (not computed-only derived indices like FIB-4, TyG, etc.)
+  const rawPanelNames = new Set(Object.values(bloodPanel).flatMap(g => Object.keys(g)))
+  const primaryBiomarkers = labInterp.biomarkers.filter(b => rawPanelNames.has(b.name))
+
   return (
     <>
       <BrandHeader href="/" />
@@ -622,7 +641,7 @@ export default function LabsPage() {
           Overview of your labs with system statuses, range parameters and trend sparklines.
         </p>
 
-        <OverviewCard biomarkers={labInterp.biomarkers} />
+        <OverviewCard biomarkers={primaryBiomarkers} />
 
         <p className="text-[11px] tracking-[.07em] uppercase text-ink-2 mb-3">System breakdown</p>
 

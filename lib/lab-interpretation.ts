@@ -22,6 +22,7 @@ export interface BiomarkerStatus {
   unit: string
   tier: BiomarkerTier
   refRange: NumericRange | null
+  optRange?: NumericRange | null  // resolved functional optimal band (narrower than refRange)
   direction: Direction
   flags: string[]
   refer: boolean
@@ -266,8 +267,8 @@ export function interpretBiomarker(
   if (def.direction === 'context') flags.push('needs_clinical_context')
 
   return {
-    name, system, value, unit: def.unit, tier, refRange: ref, direction: def.direction,
-    flags, refer, crossLinks: def.crossLinks ?? [], note: def.note,
+    name, system, value, unit: def.unit, tier, refRange: ref, optRange: optimal,
+    direction: def.direction, flags, refer, crossLinks: def.crossLinks ?? [], note: def.note,
   }
 }
 

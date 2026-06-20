@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { TabBar } from '@/components/TabBar'
 import { useUserContext } from '@/lib/UserContext'
+import { NoSSR } from '@/components/NoSSR'
 
 function PatientBanner() {
   const { users, activeUserId } = useUserContext()
@@ -30,7 +31,7 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
   return (
     <div className="min-h-screen bg-bg flex flex-col">
       <PatientBanner />
-      <main className="flex-1 pb-[68px]">{children}</main>
+      <main className="flex-1 pb-[68px]"><NoSSR>{children}</NoSSR></main>
       <TabBar />
     </div>
   )

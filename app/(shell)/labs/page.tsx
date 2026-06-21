@@ -61,7 +61,7 @@ const SUBGROUPS: Record<string, { label: string; tests: string[] }[]> = {
     { label: 'Minerals', tests: ['Sodium', 'Potassium', 'Chloride', 'Bicarbonate', 'Calcium', 'Magnesium'] },
   ],
   'Lipids & Cardiac': [
-    { label: 'Lipids', tests: ['Total Cholesterol', 'HDL', 'LDL', 'Triglycerides', 'Non-HDL', 'TC/HDL Ratio', 'TG/HDL Ratio', 'ApoB', 'Lp(a)'] },
+    { label: 'Lipids', tests: ['Total Cholesterol', 'HDL', 'LDL', 'Triglycerides', 'VLDL Cholesterol', 'Non-HDL', 'TC/HDL Ratio', 'TG/HDL Ratio', 'ApoB', 'Lp(a)'] },
     { label: 'Cardiac inflammation', tests: ['hs-CRP'] },
   ],
 }
@@ -231,6 +231,11 @@ const PARAM_DESC: Record<string, string> = {
   Casts:                    'Cylindrical structures formed in the kidney tubules. Their presence and type can reveal significant kidney pathology.',
   Crystals:                 'Crystals in urine are often benign but some types (e.g. uric acid, calcium oxalate) are associated with kidney stone formation.',
   'Total IgE':              'The total level of IgE antibodies — the immune proteins involved in allergic responses. Elevated levels suggest generalised allergic sensitisation, though a normal result does not rule out specific allergies.',
+  'VLDL Cholesterol':       'Very low-density lipoprotein — the primary carrier of triglycerides in the bloodstream. High VLDL contributes to arterial plaque and closely mirrors elevated triglycerides and insulin resistance.',
+  'AIP':                    'Atherogenic Index of Plasma — a log-scaled ratio of triglycerides to HDL (in mmol/L). More sensitive than either TG or HDL alone at identifying small, dense LDL particles that drive atherosclerosis.',
+  'FAI':                    'Free Androgen Index — the ratio of total testosterone to SHBG, reflecting biologically available testosterone. Elevated values in women can indicate PCOS or adrenal androgen excess.',
+  'DHEA-S:Cortisol':        'The ratio of your adrenal anabolic hormone (DHEA-S) to your stress hormone (cortisol). A low ratio may reflect cortisol dominance from chronic stress; a high ratio may indicate excess adrenal DHEA production.',
+  'Anion Gap':              'The calculated gap between measured cations and anions in blood. A persistently elevated gap indicates metabolic acidosis and warrants investigation.',
   SHBG:                     'Sex hormone-binding globulin — a protein that binds testosterone and oestrogen, affecting how much is biologically active.',
   'Total Testosterone (men)': 'The total amount of testosterone in blood. Optimal levels support energy, muscle mass, libido, mood, and metabolic health.',
   'Free Testosterone (men)':  'The biologically active fraction of testosterone not bound to SHBG or albumin. A better indicator of functional testosterone status.',
@@ -439,13 +444,25 @@ function SystemAccordion({
           {SUBGROUPS[name]
             ? SUBGROUPS[name].map(sg => {
                 // Show tests that have values OR that are in the panel but not yet entered (shows '—').
-                // This ensures expected markers like ESR always appear in their subgroup heading.
+                // Also injects computed derived markers (e.g. VLDL) when they have a value.
                 const sgTests = sg.tests
                   .map(t => {
                     const withValue = activeTests.find(([n]) => n === t)
                     if (withValue) return withValue
                     const stub = tests[t]
-                    return stub !== undefined ? ([t, stub] as [string, BloodTestResult]) : null
+                    if (stub !== undefined) return [t, stub] as [string, BloodTestResult]
+                    // Derived biomarker not in the raw panel — inject if computed
+                    const derived = bioMarkerMap.get(t)
+                    if (derived?.flags.includes('derived') && derived.value !== null) {
+                      const synth: BloodTestResult = {
+                        value: String(derived.value),
+                        unit: derived.unit ?? '',
+                        refRange: fmtRef(derived),
+                        status: tierToStatus(derived.tier),
+                      }
+                      return [t, synth] as [string, BloodTestResult]
+                    }
+                    return null
                   })
                   .filter((x): x is [string, BloodTestResult] => x !== null)
                 if (sgTests.length === 0) return null
@@ -484,9 +501,10 @@ function SystemAccordion({
 
 // ── Derived / computed indices ────────────────────────────────────────────────
 
-// Derived indices in display order
+// Derived indices in display order (VLDL Cholesterol is shown inline in Lipids & Cardiac instead)
 const DERIVED_ORDER = [
-  'TyG Index', 'HOMA-IR', 'Remnant Cholesterol',
+  'FIB-4', 'TyG Index', 'HOMA-IR', 'Remnant Cholesterol',
+  'AIP', 'FAI', 'DHEA-S:Cortisol', 'Anion Gap',
   'A/G Ratio', 'Corrected Calcium', 'LH/FSH Ratio',
 ]
 
@@ -613,7 +631,7 @@ function DerivedIndicesSection({
       {open && (
         <div className="px-5 pb-5 border-t border-border">
           <p className="text-[12px] text-ink-2 leading-relaxed pt-3 pb-3 border-b border-border">
-            These values are calculated automatically from your blood results — TyG Index (insulin resistance), Remnant Cholesterol, A/G Ratio, and Corrected Calcium.
+            These values are calculated automatically from your blood results — FIB-4 (liver fibrosis risk), TyG Index and HOMA-IR (insulin resistance), Remnant Cholesterol, AIP (cardiovascular risk), FAI (free androgen index), DHEA-S:Cortisol ratio, Anion Gap, A/G Ratio, and Corrected Calcium.
           </p>
           {derived.map(b => <DerivedRow key={b.name} b={b} />)}
         </div>

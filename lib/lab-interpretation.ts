@@ -136,12 +136,15 @@ export const DERIVATIONS: Derivation[] = [
       return g !== null && i !== null ? (g * i) / 405 : null
     },
   },
-  { // FIB-4 = (Age × AST) / (Platelets × √ALT)
+  { // FIB-4 = (Age × AST) / (Platelets [×10⁹/L] × √ALT)
     name: 'FIB-4', group: 'Liver Function',
     compute: (p, ctx) => {
       const ast = findPanelValue(p, 'AST'), alt = findPanelValue(p, 'ALT'), plt = findPanelValue(p, 'Platelets')
       if (ctx.age === null || ast === null || alt === null || !plt || alt <= 0) return null
-      return (ctx.age * ast) / (plt * Math.sqrt(alt))
+      // Registry stores Platelets in lakhs/cumm (values ≤20); ×100 converts to ×10⁹/L.
+      // Legacy data stored in ×10⁹/L (values >20) is used directly.
+      const plt10_9 = plt <= 20 ? plt * 100 : plt
+      return round2((ctx.age * ast) / (plt10_9 * Math.sqrt(alt)))
     },
   },
   { // TyG index = ln(Triglycerides × Fasting Glucose / 2)
@@ -176,7 +179,44 @@ export const DERIVATIONS: Derivation[] = [
     name: 'LH/FSH Ratio', group: 'Hormones · Optional',
     compute: (p) => {
       const lh = findPanelValue(p, 'LH (women)'), fsh = findPanelValue(p, 'FSH (women)')
-      return lh !== null && fsh ? lh / fsh : null
+      return lh !== null && fsh ? round2(lh / fsh) : null
+    },
+  },
+  { // VLDL = Triglycerides / 5 (Friedewald; valid only when TG < 400 mg/dL)
+    name: 'VLDL Cholesterol', group: 'Lipids & Cardiac',
+    compute: (p) => {
+      const tg = findPanelValue(p, 'Triglycerides')
+      return tg !== null && tg > 0 && tg < 400 ? round2(tg / 5) : null
+    },
+  },
+  { // AIP = log₁₀(TG [mmol/L] / HDL [mmol/L]); convert mg/dL → TG÷88.57, HDL÷38.67
+    name: 'AIP', group: 'Lipids & Cardiac',
+    compute: (p) => {
+      const tg = findPanelValue(p, 'Triglycerides'), hdl = findPanelValue(p, 'HDL')
+      if (tg === null || !hdl || hdl <= 0 || tg <= 0) return null
+      return round2(Math.log10((tg / 88.57) / (hdl / 38.67)))
+    },
+  },
+  { // FAI = (Total Testosterone [ng/dL] × 0.03467 × 100) / SHBG [nmol/L]
+    name: 'FAI', group: 'Hormones · Optional',
+    compute: (p) => {
+      const tt = findPanelValue(p, 'Total Testosterone (men)'), shbg = findPanelValue(p, 'SHBG')
+      if (tt === null || !shbg || shbg <= 0) return null
+      return round2((tt * 3.467) / shbg)
+    },
+  },
+  { // DHEA-S:Cortisol ratio — both inputs in µg/dL
+    name: 'DHEA-S:Cortisol', group: 'Stress Hormones',
+    compute: (p) => {
+      const dhea = findPanelValue(p, 'DHEA-S'), cort = findPanelValue(p, 'Morning Cortisol')
+      return dhea !== null && cort ? round2(dhea / cort) : null
+    },
+  },
+  { // Anion Gap = Sodium − (Chloride + Bicarbonate) in mmol/L
+    name: 'Anion Gap', group: 'Kidney Function',
+    compute: (p) => {
+      const na = findPanelValue(p, 'Sodium'), cl = findPanelValue(p, 'Chloride'), hco3 = findPanelValue(p, 'Bicarbonate')
+      return na !== null && cl !== null && hco3 !== null ? round2(na - (cl + hco3)) : null
     },
   },
 ]

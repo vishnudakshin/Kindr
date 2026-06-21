@@ -219,7 +219,45 @@ const currentScores = computeAll(questionnaire)
 
 export const mockData: AppData = (() => {
   const stored = loadFromStorage()
-  if (stored) return stored
+  if (stored) {
+    // ── schema migration ─────────────────────────────────────────────────────
+    // Merge renamed blood-panel groups so old localStorage data works with
+    // current code. Safe to run every load — no-ops when already migrated.
+    const bp = stored.bloodPanel
+    const hasOldStress  = 'Stress Hormones' in bp
+    const hasOldOptHorm = 'Hormones · Optional' in bp
+    if (hasOldStress || hasOldOptHorm) {
+      const merged: Record<string, typeof stored.bloodPanel[string][string]> = {
+        ...(bp['Stress Hormones'] ?? {}),
+        ...(bp['Hormones · Optional'] ?? {}),
+      }
+      // Rename field within merged group
+      if ('Total Testosterone (men)' in merged) {
+        merged['Total Testosterone'] = {
+          ...merged['Total Testosterone (men)'],
+          unit: 'ng/mL',
+          refRange: '0.084–0.481',
+        }
+        delete merged['Total Testosterone (men)']
+      }
+      delete bp['Stress Hormones']
+      delete bp['Hormones · Optional']
+      bp['Hormones'] = { ...(bp['Hormones'] ?? {}), ...merged }
+    }
+    // Also catch Total Testosterone (men) in any other group (belt-and-suspenders)
+    for (const tests of Object.values(bp)) {
+      if ('Total Testosterone (men)' in tests) {
+        tests['Total Testosterone'] = {
+          ...tests['Total Testosterone (men)'],
+          unit: 'ng/mL',
+          refRange: '0.084–0.481',
+        }
+        delete tests['Total Testosterone (men)']
+      }
+    }
+    // ── end migration ────────────────────────────────────────────────────────
+    return stored
+  }
   // Fall through to the hardcoded "Alex" demo below
   return {
   user: {

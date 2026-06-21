@@ -382,26 +382,18 @@ function SystemAccordion({
 
   const activeMap = Object.fromEntries(activeTests)
 
-  // Allergy Panel exception: never show red "Urgent" — cap at amber 50% when out of range.
-  // Allergy status reflects sensitisation risk, not an acute emergency.
+  // Allergy Panel exception: no data → 0% green "No results recorded" (normal empty state).
+  // When data IS present and out of range, cap at 50% amber "Needs attention" — never red "Urgent".
   const isAllergyPanel = name === 'Allergy Panel - IgE'
-  const isAllergyEmpty = isAllergyPanel && !hasData
-  const rawDialPct = isAllergyEmpty ? 0.3
-    : !hasData ? 0
-    : computeDialPct(activeTests, bioMarkerMap)
+  const rawDialPct = !hasData ? 0 : computeDialPct(activeTests, bioMarkerMap)
   const dialPct = (isAllergyPanel && hasData && rawDialPct < 0.4) ? 0.5 : rawDialPct
   // Threshold: 100% → Optimal (green), 40–99% → Needs attention (amber), <40% → Urgent (red)
-  const dialStatus: Status = isAllergyEmpty ? 'borderline'
-    : !hasData ? 'normal'
+  const dialStatus: Status = !hasData ? 'normal'
     : dialPct >= 1.0 ? 'normal'
     : dialPct >= 0.4 ? 'borderline'
     : 'abnormal'
-  const displayLabel = isAllergyEmpty ? STATUS_LABEL['borderline']
-    : !hasData ? 'No results recorded'
-    : STATUS_LABEL[dialStatus]
-  const displayColor = isAllergyEmpty ? STATUS_COLOR['borderline']
-    : !hasData ? '#6B6650'
-    : STATUS_COLOR[dialStatus]
+  const displayLabel = !hasData ? 'No results recorded' : STATUS_LABEL[dialStatus]
+  const displayColor = !hasData ? '#6B6650' : STATUS_COLOR[dialStatus]
 
   return (
     <div className="bg-card rounded-2xl border border-border shadow-card mb-3 overflow-hidden">

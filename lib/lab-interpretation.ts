@@ -198,7 +198,7 @@ export const DERIVATIONS: Derivation[] = [
     },
   },
   { // FAI = (Total Testosterone [ng/dL] × 0.03467 × 100) / SHBG [nmol/L]
-    name: 'FAI', group: 'Hormones · Optional',
+    name: 'FAI', group: 'Hormones',
     compute: (p) => {
       const tt = findPanelValue(p, 'Total Testosterone'), shbg = findPanelValue(p, 'SHBG')
       if (tt === null || !shbg || shbg <= 0) return null
@@ -206,7 +206,7 @@ export const DERIVATIONS: Derivation[] = [
     },
   },
   { // DHEA-S:Cortisol ratio — both inputs in µg/dL
-    name: 'DHEA-S:Cortisol', group: 'Stress Hormones',
+    name: 'DHEA-S:Cortisol', group: 'Hormones',
     compute: (p) => {
       const dhea = findPanelValue(p, 'DHEA-S'), cort = findPanelValue(p, 'Morning Cortisol')
       return dhea !== null && cort ? round2(dhea / cort) : null

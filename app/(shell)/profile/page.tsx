@@ -106,21 +106,21 @@ function NutritionAssessmentCard() {
 
           {/* Calorie row */}
           <div>
-            <div className="flex items-baseline justify-between mb-2">
+            <div className="grid grid-cols-2 gap-3 mb-2">
               <div>
                 <p className="text-[11px] uppercase tracking-[.05em] text-ink-2 mb-0.5">Daily target</p>
-                <div className="flex items-baseline gap-1.5">
-                  <span className="font-serif text-[28px] font-medium text-ink leading-none">
+                <div className="flex items-baseline gap-1">
+                  <span className="font-serif text-[24px] font-medium text-ink leading-none">
                     {(target ?? da.tdee).toLocaleString()}
                   </span>
-                  <span className="text-[12px] text-ink-2">kcal</span>
+                  <span className="text-[11px] text-ink-2">kcal</span>
                 </div>
               </div>
               {intake > 0 && (
-                <div className="text-right">
+                <div>
                   <p className="text-[11px] uppercase tracking-[.05em] text-ink-2 mb-0.5">Typical intake</p>
-                  <div className="flex items-baseline gap-1.5 justify-end">
-                    <span className={`font-serif text-[22px] font-medium leading-none ${
+                  <div className="flex items-baseline gap-1">
+                    <span className={`font-serif text-[24px] font-medium leading-none ${
                       target && intake > target * 1.15
                         ? 'text-[#C77D2E]'
                         : target && intake < target * 0.75
@@ -129,7 +129,7 @@ function NutritionAssessmentCard() {
                     }`}>
                       {intake.toLocaleString()}
                     </span>
-                    <span className="text-[12px] text-ink-2">kcal</span>
+                    <span className="text-[11px] text-ink-2">kcal</span>
                   </div>
                   {target && (
                     <p className="text-[10px] text-ink-2 mt-0.5">

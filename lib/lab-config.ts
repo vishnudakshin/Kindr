@@ -66,8 +66,7 @@ export const GROUP_TO_SYSTEM: Record<string, BodySystem> = {
   'Metabolic': 'Metabolic',
   'Lipids & Cardiac': 'Heart',
   'Thyroid': 'Thyroid',
-  'Stress Hormones': 'Hormones',
-  'Hormones · Optional': 'Hormones',
+  'Hormones': 'Hormones',
   'Allergy Panel - IgE': 'Blood & immune',
 }
 
@@ -99,9 +98,9 @@ export const PANEL_GROUPS: Record<string, string[]> = {
     'Colour & Transparency', 'Protein', 'Glucose', 'Ketones', 'pH',
     'RBC', 'Pus Cells', 'Casts', 'Crystals',
   ],
-  'Stress Hormones': ['Morning Cortisol', 'DHEA-S'],
-  'Hormones · Optional': [
-    'SHBG', 'Total Testosterone (men)', 'Free Testosterone (men)',
+  'Hormones': [
+    'Morning Cortisol', 'DHEA-S',
+    'SHBG', 'Total Testosterone', 'Free Testosterone (men)',
     'Estradiol (women)', 'FSH (women)', 'LH (women)',
   ],
   'Allergy Panel - IgE': ['Total IgE'],
@@ -306,8 +305,10 @@ export const BIOMARKERS: Record<string, BiomarkerDef> = {
   'SHBG': { unit: 'nmol/L', system: 'Hormones', direction: 'two_sided',
     ref: { male: { low: 18, high: 54 }, female: { low: 32.4, high: 128 } },
     note: 'Interpret with testosterone or oestradiol to gauge free hormone availability.' },
-  'Total Testosterone (men)': { unit: 'ng/dL', system: 'Hormones', direction: 'low_bad', ref: { low: 300, high: 1000 },
-    crossLinks: ['low_libido', 'fatigue', 'mood', 'activity'], note: 'Measure morning, fasting.' },
+  'Total Testosterone': { unit: 'ng/mL', system: 'Hormones', direction: 'two_sided',
+    ref: { male: { low: 3.0, high: 10.0 }, female: { low: 0.084, high: 0.481 } },
+    crossLinks: ['low_libido', 'fatigue', 'mood', 'activity'],
+    note: 'Female ref 0.084–0.481 ng/mL; male ref 3.0–10.0 ng/mL. Measure morning, fasting.' },
   'Free Testosterone (men)': { unit: 'pg/mL', system: 'Hormones', direction: 'low_bad', ref: { low: 9, high: 30 },
     crossLinks: ['low_libido', 'fatigue'] },
   'Estradiol (women)': { unit: 'pg/mL', system: 'Hormones', direction: 'two_sided',

@@ -200,7 +200,7 @@ export const DERIVATIONS: Derivation[] = [
   { // FAI = (Total Testosterone [ng/dL] × 0.03467 × 100) / SHBG [nmol/L]
     name: 'FAI', group: 'Hormones · Optional',
     compute: (p) => {
-      const tt = findPanelValue(p, 'Total Testosterone (men)'), shbg = findPanelValue(p, 'SHBG')
+      const tt = findPanelValue(p, 'Total Testosterone'), shbg = findPanelValue(p, 'SHBG')
       if (tt === null || !shbg || shbg <= 0) return null
       return round2((tt * 3.467) / shbg)
     },

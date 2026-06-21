@@ -321,20 +321,18 @@ export const mockData: AppData = (() => {
       'Casts':     { value: 'None seen', unit: '',     refRange: 'None seen', status: 'normal' },
       'Crystals':  { value: 'None seen', unit: '',     refRange: 'None seen', status: 'normal' },
     },
-    'Stress Hormones': {
-      'Morning Cortisol': { value: '18',  unit: 'µg/dL',  refRange: '6–23',    status: 'normal' },
-      'DHEA-S':           { value: '220', unit: 'µg/dL',  refRange: '85–690',  status: 'normal' },
-    },
     'Allergy Panel - IgE': {
       'Total IgE': { value: '', unit: 'IU/mL', refRange: '<100', status: undefined },
     },
-    'Hormones · Optional': {
-      'SHBG':                       { value: '', unit: 'nmol/L', refRange: '32.4–128', status: undefined },
-      'Total Testosterone (men)':   { value: '', unit: 'ng/dL',  refRange: '300–1000', status: undefined },
-      'Free Testosterone (men)':    { value: '', unit: 'pg/mL',  refRange: '50–210',   status: undefined },
-      'Estradiol (women)':          { value: '', unit: 'pg/mL',  refRange: '30–400',   status: undefined },
-      'FSH (women)':                { value: '', unit: 'mIU/mL', refRange: '1.5–12',   status: undefined },
-      'LH (women)':                 { value: '', unit: 'mIU/mL', refRange: '1.9–12.5', status: undefined },
+    'Hormones': {
+      'Morning Cortisol':        { value: '18',   unit: 'µg/dL',   refRange: '6–23',         status: 'normal'    },
+      'DHEA-S':                  { value: '220',  unit: 'µg/dL',   refRange: '85–690',       status: 'normal'    },
+      'SHBG':                    { value: '',     unit: 'nmol/L',  refRange: '32.4–128',    status: undefined   },
+      'Total Testosterone':      { value: '',     unit: 'ng/mL',   refRange: '0.084–0.481', status: undefined   },
+      'Free Testosterone (men)': { value: '',     unit: 'pg/mL',   refRange: '50–210',       status: undefined   },
+      'Estradiol (women)':       { value: '',     unit: 'pg/mL',   refRange: '30–400',       status: undefined   },
+      'FSH (women)':             { value: '',     unit: 'mIU/mL',  refRange: '1.5–12',       status: undefined   },
+      'LH (women)':              { value: '',     unit: 'mIU/mL',  refRange: '1.9–12.5',     status: undefined   },
     },
   },
 
@@ -509,7 +507,7 @@ export const BODY_SYSTEM_GROUPS: Record<string, string[]> = {
   liver:        ['Liver Function'],
   blood:        ['Complete Blood Count'],
   vitamins:     ['Vitamins & Minerals'],
-  hormones:     ['Stress Hormones', 'Hormones · Optional'],
+  hormones:     ['Hormones'],
   heart:        ['Lipids & Cardiac'],
   kidney:       ['Kidney Function', 'Urinalysis'],
   inflammation: ['Inflammation & Iron Profile'],

@@ -44,9 +44,8 @@ const NARRATIVES: Record<string, string> = {
   'Lipids & Cardiac':              'Cholesterol is well-managed. Non-HDL and TG/HDL ratio are mildly high. hs-CRP is borderline — monitoring inflammation alongside lipids is useful.',
   'Thyroid':                       'TSH, FT3, and FT4 are all within normal range.',
   'Urinalysis':                    'All urinalysis markers are normal.',
-  'Stress Hormones':               'Cortisol and DHEA-S are both within healthy ranges.',
-  // These two are placeholder-only; shown only when no data is recorded (see accordion logic).
-  'Hormones · Optional':           'No optional hormone values recorded yet.',
+  'Hormones':                      'Adrenal hormones (cortisol, DHEA-S) reflect stress response and vitality. Sex hormones (SHBG, testosterone, oestradiol, FSH, LH) reflect reproductive and metabolic function.',
+  // Placeholder-only — shown only when no data is recorded (see accordion logic).
   'Allergy Panel - IgE':           'No allergy values recorded yet. Total IgE helps screen for overall allergic sensitisation.',
 }
 
@@ -63,6 +62,10 @@ const SUBGROUPS: Record<string, { label: string; tests: string[] }[]> = {
   'Lipids & Cardiac': [
     { label: 'Lipids', tests: ['Total Cholesterol', 'HDL', 'LDL', 'Triglycerides', 'VLDL Cholesterol', 'Non-HDL', 'TC/HDL Ratio', 'TG/HDL Ratio', 'ApoB', 'Lp(a)'] },
     { label: 'Cardiac inflammation', tests: ['hs-CRP'] },
+  ],
+  'Hormones': [
+    { label: 'Adrenal', tests: ['Morning Cortisol', 'DHEA-S'] },
+    { label: 'Sex hormones', tests: ['SHBG', 'Total Testosterone', 'Free Testosterone (men)', 'Estradiol (women)', 'FSH (women)', 'LH (women)'] },
   ],
 }
 
@@ -237,8 +240,8 @@ const PARAM_DESC: Record<string, string> = {
   'DHEA-S:Cortisol':        'The ratio of your adrenal anabolic hormone (DHEA-S) to your stress hormone (cortisol). A low ratio may reflect cortisol dominance from chronic stress; a high ratio may indicate excess adrenal DHEA production.',
   'Anion Gap':              'The calculated gap between measured cations and anions in blood. A persistently elevated gap indicates metabolic acidosis and warrants investigation.',
   SHBG:                     'Sex hormone-binding globulin — a protein that binds testosterone and oestrogen, affecting how much is biologically active.',
-  'Total Testosterone (men)': 'The total amount of testosterone in blood. Optimal levels support energy, muscle mass, libido, mood, and metabolic health.',
-  'Free Testosterone (men)':  'The biologically active fraction of testosterone not bound to SHBG or albumin. A better indicator of functional testosterone status.',
+  'Total Testosterone':       'The total amount of testosterone in blood. Female ref 0.084–0.481 ng/mL; male ref 3–10 ng/mL. Supports energy, muscle mass, libido, mood, and metabolic health.',
+  'Free Testosterone (men)':  'The biologically active fraction of testosterone not bound to SHBG or albumin. A better indicator of functional testosterone status in men.',
   'Estradiol (women)':      'The primary oestrogen in reproductive-age women, important for bone health, cardiovascular protection, and mood regulation.',
   'FSH (women)':            'Follicle-stimulating hormone — elevated levels outside menopause suggest poor ovarian reserve; very low levels indicate pituitary issues.',
   'LH (women)':             'Luteinising hormone — triggers ovulation. Persistently elevated LH with high FSH suggests premature ovarian insufficiency.',
@@ -379,12 +382,14 @@ function SystemAccordion({
 
   const activeMap = Object.fromEntries(activeTests)
 
-  // Allergy Panel with no data shows amber "Needs attention" — not red — since
-  // absence of allergy testing is not an emergency.
-  const isAllergyEmpty = name === 'Allergy Panel - IgE' && !hasData
-  const dialPct = isAllergyEmpty ? 0.3
+  // Allergy Panel exception: never show red "Urgent" — cap at amber 50% when out of range.
+  // Allergy status reflects sensitisation risk, not an acute emergency.
+  const isAllergyPanel = name === 'Allergy Panel - IgE'
+  const isAllergyEmpty = isAllergyPanel && !hasData
+  const rawDialPct = isAllergyEmpty ? 0.3
     : !hasData ? 0
     : computeDialPct(activeTests, bioMarkerMap)
+  const dialPct = (isAllergyPanel && hasData && rawDialPct < 0.4) ? 0.5 : rawDialPct
   // Threshold: 100% → Optimal (green), 40–99% → Needs attention (amber), <40% → Urgent (red)
   const dialStatus: Status = isAllergyEmpty ? 'borderline'
     : !hasData ? 'normal'
@@ -428,7 +433,7 @@ function SystemAccordion({
       {open && (
         <div className="px-5 pb-5 border-t border-border">
           {/* Placeholder-only narratives (Hormones Optional, Allergy) are hidden when data exists */}
-          {NARRATIVES[name] && (hasData ? name !== 'Hormones · Optional' && name !== 'Allergy Panel - IgE' : true) && (
+          {NARRATIVES[name] && (hasData ? name !== 'Allergy Panel - IgE' : true) && (
             <p className="text-[12px] text-ink-2 leading-relaxed pt-3 pb-3 border-b border-border">
               {NARRATIVES[name]}
             </p>

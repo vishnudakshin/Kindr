@@ -4,7 +4,8 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { BrandHeader } from '@/components/ui/BrandHeader'
 import { Button } from '@/components/ui/Button'
-import { mockData } from '@/lib/data'
+import { mockData, getDietLog } from '@/lib/data'
+import { estimateDietCalories, estimateDietMacros } from '@/lib/nutrition-table'
 import { ShareReportButton } from '@/components/share/ShareReportButton'
 import { ACTIVITY_LABEL } from '@/lib/types'
 
@@ -80,7 +81,19 @@ function SegmentedControl({
 // ── Nutrition assessment card ─────────────────────────────────────────────────
 
 function NutritionAssessmentCard() {
-  const da = mockData.dietAssessment
+  const da  = mockData.dietAssessment
+  const log = getDietLog()
+
+  const intake      = log ? estimateDietCalories(log) : 0
+  const intakeMacros = log ? estimateDietMacros(log) : null
+
+  const target      = da?.targetTdee ?? da?.tdee ?? null
+  const targetMacros = da?.macros ?? null
+
+  function pct(val: number, tgt: number) {
+    if (!tgt) return null
+    return Math.round((val / tgt) * 100)
+  }
 
   return (
     <div className="bg-card rounded-2xl border border-border shadow-card p-5">
@@ -89,27 +102,90 @@ function NutritionAssessmentCard() {
       </p>
 
       {da ? (
-        <div className="flex flex-col gap-3 mb-4">
-          <div className="flex items-baseline gap-2">
-            <span className="font-serif text-[32px] font-medium text-ink leading-none">
-              {da.tdee.toLocaleString()}
-            </span>
-            <span className="text-[13px] text-ink-2">kcal / day</span>
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            {[
-              { label: 'Protein', value: `${da.macros.protein_g}g` },
-              { label: 'Carbs',   value: `${da.macros.carbs_g}g`   },
-              { label: 'Fat',     value: `${da.macros.fat_g}g`     },
-            ].map(({ label, value }) => (
-              <div key={label} className="bg-bg-soft rounded-xl px-3 py-2.5 text-center">
-                <p className="text-[13px] font-medium text-ink">{value}</p>
-                <p className="text-[10px] text-ink-2 mt-0.5">{label}</p>
+        <div className="flex flex-col gap-4 mb-4">
+
+          {/* Calorie row */}
+          <div>
+            <div className="flex items-baseline justify-between mb-2">
+              <div>
+                <p className="text-[11px] uppercase tracking-[.05em] text-ink-2 mb-0.5">Daily target</p>
+                <div className="flex items-baseline gap-1.5">
+                  <span className="font-serif text-[28px] font-medium text-ink leading-none">
+                    {(target ?? da.tdee).toLocaleString()}
+                  </span>
+                  <span className="text-[12px] text-ink-2">kcal</span>
+                </div>
               </div>
-            ))}
+              {intake > 0 && (
+                <div className="text-right">
+                  <p className="text-[11px] uppercase tracking-[.05em] text-ink-2 mb-0.5">Typical intake</p>
+                  <div className="flex items-baseline gap-1.5 justify-end">
+                    <span className={`font-serif text-[22px] font-medium leading-none ${
+                      target && intake > target * 1.15
+                        ? 'text-[#C77D2E]'
+                        : target && intake < target * 0.75
+                          ? 'text-[#B8842A]'
+                          : 'text-ink'
+                    }`}>
+                      {intake.toLocaleString()}
+                    </span>
+                    <span className="text-[12px] text-ink-2">kcal</span>
+                  </div>
+                  {target && (
+                    <p className="text-[10px] text-ink-2 mt-0.5">
+                      {pct(intake, target)}% of target
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Progress bar */}
+            {intake > 0 && target && (
+              <div className="h-1.5 bg-bg rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${
+                    intake > target * 1.1 ? 'bg-[#C77D2E]' : 'bg-ink'
+                  }`}
+                  style={{ width: `${Math.min(100, pct(intake, target) ?? 0)}%` }}
+                />
+              </div>
+            )}
           </div>
-          <p className="text-[11px] text-ink-2">
-            {ACTIVITY_LABEL[da.activityLevel]} · Goal: {da.goal.replace('_', ' ')} · Last assessed {da.completedDate}
+
+          {/* Macro breakdown */}
+          <div>
+            <p className="text-[11px] uppercase tracking-[.05em] text-ink-2 mb-2">Macros</p>
+            <div className="grid grid-cols-3 gap-2">
+              {([
+                { label: 'Protein', tgt: targetMacros?.protein_g, cur: intakeMacros?.protein_g },
+                { label: 'Carbs',   tgt: targetMacros?.carbs_g,   cur: intakeMacros?.carb_g   },
+                { label: 'Fat',     tgt: targetMacros?.fat_g,     cur: intakeMacros?.fat_g    },
+              ] as const).map(({ label, tgt, cur }) => {
+                const hasCur = intakeMacros && (cur ?? 0) > 0
+                return (
+                  <div key={label} className="bg-bg rounded-xl px-3 py-2.5 text-center">
+                    <p className="text-[10px] text-ink-2 mb-1">{label}</p>
+                    {tgt != null && (
+                      <p className="text-[13px] font-medium text-ink leading-tight">{tgt}g</p>
+                    )}
+                    {hasCur && (
+                      <p className={`text-[11px] mt-0.5 ${
+                        tgt && Math.abs((cur ?? 0) - tgt) / tgt > 0.2
+                          ? 'text-[#C77D2E]'
+                          : 'text-ink-2'
+                      }`}>
+                        {Math.round(cur ?? 0)}g eaten
+                      </p>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          <p className="text-[11px] text-ink-2 -mt-1">
+            {ACTIVITY_LABEL[da.activityLevel]} · Goal: {da.goal.replace(/_/g, ' ')} · Assessed {da.completedDate}
           </p>
         </div>
       ) : (

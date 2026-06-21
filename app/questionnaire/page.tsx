@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Slider } from '@/components/ui/Slider'
 import { ProgressBar } from '@/components/ui/ProgressBar'
-import { saveQuestionnaire } from '@/lib/data'
+import { saveQuestionnaire, mockData } from '@/lib/data'
 import type {
   QuestionnaireResponses,
   HistoryResponses, StressResponses, ActivityResponses, SleepResponses,
@@ -894,23 +894,14 @@ export default function QuestionnairePage() {
   const router = useRouter()
   const [step, setStep] = useState(1)
 
-  const [history,   setHistory]   = useState<HistoryResponses>({
-    age: null, sex: '', ethnicity: 'south_asian', dietaryPreferences: [], unit: 'metric',
-    heightCm: '', weightKg: '', heightFt: '', heightIn: '', weightLbs: '', waistCm: '',
-    bpSystolic: null, bpDiastolic: null,
-    conditions: ['None'], conditionsOther: '',
-    medications: 'None', medicationsText: '',
-    allergies: 'None known', allergiesText: '',
-    tobacco: 'Never', mentalHealth: 'No',
-    familyHistory: ['None known'], familyHistoryOther: '',
-  })
-  const [stress,    setStress]    = useState<StressResponses>({ items: Array(10).fill(0) })
-  const [activity,  setActivity]  = useState<ActivityResponses>({ mvpaDays: 3, mvpaMinutes: 30, strengthDays: 2, sittingHours: 6 })
-  const [sleep,     setSleep]     = useState<SleepResponses>({ items: Array(8).fill(1) })
-  const [nutrition, setNutrition] = useState<NutritionResponses>({ stc: Array(8).fill(0), auditC: Array(3).fill(0) })
-  const [cognition, setCognition] = useState<CognitionResponses>({ items: Array(4).fill(3) })
-  const [wellbeing, setWellbeing] = useState<WellbeingResponses>({ items: Array(5).fill(3) })
-  const [symptoms,  setSymptoms]  = useState<SymptomsResponses>({ physical: [], energyMood: [], otherSymptoms: '' })
+  const [history,   setHistory]   = useState<HistoryResponses>(() => mockData.questionnaire.history)
+  const [stress,    setStress]    = useState<StressResponses>(() => mockData.questionnaire.stress)
+  const [activity,  setActivity]  = useState<ActivityResponses>(() => mockData.questionnaire.activity)
+  const [sleep,     setSleep]     = useState<SleepResponses>(() => mockData.questionnaire.sleep)
+  const [nutrition, setNutrition] = useState<NutritionResponses>(() => mockData.questionnaire.nutrition)
+  const [cognition, setCognition] = useState<CognitionResponses>(() => mockData.questionnaire.cognition)
+  const [wellbeing, setWellbeing] = useState<WellbeingResponses>(() => mockData.questionnaire.wellbeing)
+  const [symptoms,  setSymptoms]  = useState<SymptomsResponses>(() => mockData.questionnaire.symptoms)
 
   function handleFinish() {
     const answers: QuestionnaireResponses = { history, stress, activity, sleep, nutrition, cognition, wellbeing, symptoms }

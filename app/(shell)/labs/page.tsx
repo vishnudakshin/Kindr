@@ -36,7 +36,7 @@ const SYS_LABEL_COLOR: Record<string, string> = {
 
 const NARRATIVES: Record<string, string> = {
   'Complete Blood Count':          'All blood cell counts are within range — no signs of anaemia or infection.',
-  'Inflammation & Iron Profile':   'ESR is within range. Ferritin is at the low end — worth monitoring iron status.',
+  'Inflammation & Iron Profile':   'Ferritin tracks iron stores; ESR and CRP reflect systemic inflammation. Low ferritin is worth monitoring.',
   'Vitamins & Minerals':           'Vitamin D is below the optimal zone. B12 and folate look healthy. Electrolytes are within normal range.',
   'Liver Function':                'Liver enzymes are all normal. The fatty liver index is marginally elevated.',
   'Kidney Function':               'Creatinine and eGFR are excellent. Urea, uric acid, and BUN/creatinine ratio are all within range.',
@@ -67,13 +67,6 @@ const SUBGROUPS: Record<string, { label: string; tests: string[] }[]> = {
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-
-function aggregateStatus(tests: Record<string, BloodTestResult>): Status {
-  const statuses = Object.values(tests).map(t => t.status).filter(Boolean) as Status[]
-  if (statuses.includes('abnormal'))   return 'abnormal'
-  if (statuses.includes('borderline')) return 'borderline'
-  return 'normal'
-}
 
 function healthScore(tests: Record<string, BloodTestResult>): number {
   const withStatus = Object.values(tests).filter(t => t.status && t.value)
@@ -249,14 +242,15 @@ const PARAM_DESC: Record<string, string> = {
 // ── Parameter row (expandable) ───────────────────────────────────────────────
 
 function ParamRow({
-  name, result, bioStat,
+  name, result, bioStat, hasTrend,
 }: {
   name: string
   result: BloodTestResult
   bioStat?: BiomarkerStatus
+  hasTrend?: boolean
 }) {
   const [open, setOpen] = useState(false)
-  const trend = bloodTrends[name]
+  const trend = hasTrend ? bloodTrends[name] : undefined
 
   // Interpretation tier overrides raw status when available.
   const effectiveStatus: Status = bioStat
@@ -361,11 +355,13 @@ function SystemAccordion({
   tests,
   sysStat,
   bioMarkerMap,
+  hasTrend,
 }: {
   name: string
   tests: Record<string, BloodTestResult>
   sysStat?: LabSysStatus
   bioMarkerMap: Map<string, BiomarkerStatus>
+  hasTrend?: boolean
 }) {
   const [open, setOpen] = useState(false)
 
@@ -376,19 +372,26 @@ function SystemAccordion({
   // (e.g. Allergy Panel, Hormones · Optional) — hide otherwise.
   if (!hasData && !NARRATIVES[name]) return null
 
-  // Derive dial score and color from interpretation if available; fall back to raw status.
   const activeMap = Object.fromEntries(activeTests)
-  const fallbackStatus = aggregateStatus(activeMap)
-  const fallbackScore  = healthScore(activeMap)
 
-  const dialPct = !hasData ? 0 : computeDialPct(activeTests, bioMarkerMap)
+  // Allergy Panel with no data shows amber "Needs attention" — not red — since
+  // absence of allergy testing is not an emergency.
+  const isAllergyEmpty = name === 'Allergy Panel - IgE' && !hasData
+  const dialPct = isAllergyEmpty ? 0.3
+    : !hasData ? 0
+    : computeDialPct(activeTests, bioMarkerMap)
   // Threshold: 100% → Optimal (green), 40–99% → Needs attention (amber), <40% → Urgent (red)
-  const dialStatus: Status = !hasData ? 'normal'
+  const dialStatus: Status = isAllergyEmpty ? 'borderline'
+    : !hasData ? 'normal'
     : dialPct >= 1.0 ? 'normal'
     : dialPct >= 0.4 ? 'borderline'
     : 'abnormal'
-  const displayLabel = !hasData ? 'No results recorded' : STATUS_LABEL[dialStatus]
-  const displayColor = !hasData ? '#6B6650' : STATUS_COLOR[dialStatus]
+  const displayLabel = isAllergyEmpty ? STATUS_LABEL['borderline']
+    : !hasData ? 'No results recorded'
+    : STATUS_LABEL[dialStatus]
+  const displayColor = isAllergyEmpty ? STATUS_COLOR['borderline']
+    : !hasData ? '#6B6650'
+    : STATUS_COLOR[dialStatus]
 
   return (
     <div className="bg-card rounded-2xl border border-border shadow-card mb-3 overflow-hidden">
@@ -457,6 +460,7 @@ function SystemAccordion({
                         name={testName}
                         result={result}
                         bioStat={bioMarkerMap.get(testName)}
+                        hasTrend={hasTrend}
                       />
                     ))}
                   </div>
@@ -468,6 +472,7 @@ function SystemAccordion({
                   name={testName}
                   result={result}
                   bioStat={bioMarkerMap.get(testName)}
+                  hasTrend={hasTrend}
                 />
               ))
           }
@@ -479,9 +484,9 @@ function SystemAccordion({
 
 // ── Derived / computed indices ────────────────────────────────────────────────
 
-// Derived indices in display order (FIB-4, TyG, etc.)
+// Derived indices in display order
 const DERIVED_ORDER = [
-  'FIB-4', 'TyG Index', 'HOMA-IR', 'Remnant Cholesterol',
+  'TyG Index', 'HOMA-IR', 'Remnant Cholesterol',
   'A/G Ratio', 'Corrected Calcium', 'LH/FSH Ratio',
 ]
 
@@ -608,7 +613,7 @@ function DerivedIndicesSection({
       {open && (
         <div className="px-5 pb-5 border-t border-border">
           <p className="text-[12px] text-ink-2 leading-relaxed pt-3 pb-3 border-b border-border">
-            These values are calculated automatically from your blood results — FIB-4 (liver fibrosis risk), TyG Index (insulin resistance), Remnant Cholesterol, A/G Ratio, and Corrected Calcium.
+            These values are calculated automatically from your blood results — TyG Index (insulin resistance), Remnant Cholesterol, A/G Ratio, and Corrected Calcium.
           </p>
           {derived.map(b => <DerivedRow key={b.name} b={b} />)}
         </div>
@@ -620,7 +625,7 @@ function DerivedIndicesSection({
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 export default function LabsPage() {
-  const { bloodPanel, questionnaire } = mockData
+  const { bloodPanel, questionnaire, scoreHistory } = mockData
   const labInterp = interpretPanel(bloodPanel, questionnaire.history)
 
   const bioMarkerMap = new Map<string, BiomarkerStatus>(
@@ -633,6 +638,9 @@ export default function LabsPage() {
   // Only count markers from the actual panel (not computed-only derived indices like FIB-4, TyG, etc.)
   const rawPanelNames = new Set(Object.values(bloodPanel).flatMap(g => Object.keys(g)))
   const primaryBiomarkers = labInterp.biomarkers.filter(b => rawPanelNames.has(b.name))
+
+  // Only show trend sparklines for users with prior test history (not on their first test).
+  const hasTrendHistory = scoreHistory.length > 1
 
   return (
     <>
@@ -660,6 +668,7 @@ export default function LabsPage() {
               tests={tests}
               sysStat={sysStat}
               bioMarkerMap={bioMarkerMap}
+              hasTrend={hasTrendHistory}
             />
           )
         })}

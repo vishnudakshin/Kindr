@@ -146,8 +146,8 @@ export const BIOMARKERS: Record<string, BiomarkerDef> = {
     note: 'Differential percentage. Mildly elevated values often reflect chronic low-grade inflammation.' },
   'Eosinophils': { unit: '%', system: 'Blood & immune', direction: 'two_sided', ref: { low: 1, high: 6 } },
   'Basophils': { unit: '%', system: 'Blood & immune', direction: 'high_bad', ref: { high: 2 } },
-  'Platelets': { unit: '10^9/L', system: 'Blood & immune', direction: 'two_sided',
-    ref: { low: 150, high: 410 }, critical: { low: 50, high: 1000 } },
+  'Platelets': { unit: 'lakhs/cumm', system: 'Blood & immune', direction: 'two_sided',
+    ref: { low: 1.5, high: 4.1 }, critical: { low: 0.5, high: 10 } },
   'Absolute Neutrophil Count': { unit: 'cells/µL', system: 'Blood & immune', direction: 'two_sided',
     ref: { low: 2000, high: 7000 }, critical: { low: 500 }, crossLinks: ['illness'],
     note: 'Absolute count in cells/µL. Low ANC (neutropenia) raises infection risk; <500 is severe.' },
@@ -268,7 +268,8 @@ export const BIOMARKERS: Record<string, BiomarkerDef> = {
   // ── Lipids & Cardiac → Heart ────────────────────────────────────────────
   'Total Cholesterol': { unit: 'mg/dL', system: 'Heart', direction: 'high_bad', ref: { high: 200 } },
   'HDL': { unit: 'mg/dL', system: 'Heart', direction: 'low_bad',
-    ref: { male: { low: 40 }, female: { low: 50 } }, crossLinks: ['activity'] },
+    ref: { low: 40 }, crossLinks: ['activity'],
+    note: '<40 mg/dL is low risk; ≥60 mg/dL is protective. Values 40–60 are within the normal range.' },
   'LDL': { unit: 'mg/dL', system: 'Heart', direction: 'high_bad',
     ref: { high: 130 }, optimal: { high: 100 }, critical: { high: 190 },
     note: '≥190 raises the question of familial hypercholesterolaemia (refer).' },
@@ -302,9 +303,9 @@ export const BIOMARKERS: Record<string, BiomarkerDef> = {
       if (ctx.sex === 'female') return a < 40 ? { low: 98.8, high: 340 } : { low: 30, high: 200 }
       return a < 40 ? { low: 110, high: 510 } : { low: 70, high: 310 }
     }, crossLinks: ['stress', 'wellbeing'] },
-  'SHBG': { unit: 'nmol/L', system: 'Hormones', direction: 'context',
-    ref: { male: { low: 18, high: 54 }, female: { low: 30, high: 90 } },
-    note: 'Interpret with testosterone to gauge free hormone.' },
+  'SHBG': { unit: 'nmol/L', system: 'Hormones', direction: 'two_sided',
+    ref: { male: { low: 18, high: 54 }, female: { low: 32.4, high: 128 } },
+    note: 'Interpret with testosterone or oestradiol to gauge free hormone availability.' },
   'Total Testosterone (men)': { unit: 'ng/dL', system: 'Hormones', direction: 'low_bad', ref: { low: 300, high: 1000 },
     crossLinks: ['low_libido', 'fatigue', 'mood', 'activity'], note: 'Measure morning, fasting.' },
   'Free Testosterone (men)': { unit: 'pg/mL', system: 'Hormones', direction: 'low_bad', ref: { low: 9, high: 30 },

@@ -22,7 +22,7 @@ const ZONE_LABELS: Record<string, [string, string, string]> = {
   'Folate (B9)':       ['low',         'borderline',   'optimal'   ],
   'Haemoglobin':       ['low',         'borderline',   'optimal'   ],
   'Haematocrit':       ['low',         'borderline',   'optimal'   ],
-  'HDL':               ['low',         'borderline',   'protective'],
+  'HDL':               ['low',         'acceptable',   'normal'    ],
   'eGFR':              ['low',         'borderline',   'optimal'   ],
   // high_bad [GREEN | AMBER | RED]
   'Fasting Insulin':   ['optimal',     'at risk',      'high'      ],
@@ -56,6 +56,8 @@ const ZONE_LABELS: Record<string, [string, string, string]> = {
   'MCV':               ['low',         'normal',       'elevated'  ],
   'MCH':               ['low',         'normal',       'elevated'  ],
   'MCHC':              ['low',         'normal',       'elevated'  ],
+  'Platelets':         ['low',         'normal',       'elevated'  ],
+  'SHBG':              ['low',         'normal',       'elevated'  ],
 }
 
 function getLabels(name: string, direction: Direction): [string, string, string] {
@@ -240,17 +242,21 @@ export function RangeBar({ result, bioStat }: RangeBarProps) {
   // ── Resolve track bounds & zones ─────────────────────────────────────────
   let trackLo: number, trackHi: number, zones: Zone[]
 
-  // Scale-mismatch guard: if the value is >100× the largest registry bound the user
-  // likely entered data in a different unit (e.g. cells/µL vs ×10⁹/L). Fall back to
-  // the lab's own refRange string so the bar renders correctly.
+  // Scale-mismatch guard: catches unit mismatches where the stored value is on a very
+  // different scale than the registry (e.g. old ×10⁹/L Platelet data vs new lakhs/cumm
+  // registry, or vice versa). Falls back to the lab's own refRange string.
   const maxRegistryBound = Math.max(
     refRange?.high ?? 0, refRange?.low ?? 0,
     optRange?.high ?? 0, optRange?.low ?? 0,
   )
+  const minRegistryBound = Math.min(
+    ...[refRange?.low, optRange?.low].filter((v): v is number => v !== undefined),
+  )
   const scaleMismatch =
     (refRange || optRange) &&
     maxRegistryBound > 0 &&
-    Math.abs(numericValue) > maxRegistryBound * 100
+    (Math.abs(numericValue) > maxRegistryBound * 50 ||
+     (numericValue > 0 && isFinite(minRegistryBound) && numericValue < minRegistryBound / 50))
 
   if ((refRange || optRange) && !scaleMismatch) {
     const track = computeTrack(numericValue, refRange, optRange, direction)
@@ -281,7 +287,7 @@ export function RangeBar({ result, bioStat }: RangeBarProps) {
   const TICK_OVERSHOOT = 3  // px the tick extends above and below the bar
 
   return (
-    <div className="relative select-none" style={{ paddingBottom: 22 }}>
+    <div className="relative select-none" style={{ paddingBottom: 34 }}>
 
       {/* ── Bar + tick ─────────────────────────────────────────────────────── */}
       <div className="relative" style={{ height: BAR_H }}>
@@ -363,6 +369,24 @@ export function RangeBar({ result, bioStat }: RangeBarProps) {
         >
           {fmt(trackHi)}
         </span>
+      </div>
+
+      {/* ── Ref-range boundary values (second row) ───────────────────────── */}
+      {/* Shows the numeric lo value of each zone transition under the bar. */}
+      <div className="absolute inset-x-0" style={{ top: BAR_H + 16 }}>
+        {zones.slice(1).map((zone, i) => {
+          const xPct = pctOf(zone.lo, trackLo, trackHi)
+          if (xPct < 6 || xPct > 94) return null
+          return (
+            <span
+              key={i}
+              className="absolute text-[9px] leading-none"
+              style={{ left: `${xPct}%`, transform: 'translateX(-50%)', color: C_NEUTRAL }}
+            >
+              {fmt(zone.lo)}
+            </span>
+          )
+        })}
       </div>
     </div>
   )

@@ -41,7 +41,7 @@ export interface TrendSeries { goodDirection: 'up' | 'down'; points: TrendPoint[
 
 export const bloodTrends: Record<string, TrendSeries> = {
   Haemoglobin:            { goodDirection: 'up',   points: [{ date: 'Oct 24', value: 13.4 }, { date: 'Jan 25', value: 13.6 }, { date: 'Apr 25', value: 13.8 }] },
-  'White Blood Cells':    { goodDirection: 'down', points: [{ date: 'Oct 24', value: 7.1  }, { date: 'Jan 25', value: 6.8  }, { date: 'Apr 25', value: 6.2  }] },
+  'White Blood Cells':    { goodDirection: 'down', points: [{ date: 'Oct 24', value: 7100 }, { date: 'Jan 25', value: 6800 }, { date: 'Apr 25', value: 6200 }] },
   'hs-CRP':               { goodDirection: 'down', points: [{ date: 'Oct 24', value: 2.8  }, { date: 'Jan 25', value: 2.4  }, { date: 'Apr 25', value: 2.1  }] },
   Ferritin:               { goodDirection: 'up',   points: [{ date: 'Oct 24', value: 22   }, { date: 'Jan 25', value: 25   }, { date: 'Apr 25', value: 28   }] },
   'Vitamin D (25-OH)':    { goodDirection: 'up',   points: [{ date: 'Oct 24', value: 14   }, { date: 'Jan 25', value: 19   }, { date: 'Apr 25', value: 24   }] },
@@ -247,7 +247,7 @@ export const mockData: AppData = (() => {
       Monocytes:             { value: '8',    unit: '%',       refRange: '2–10',      status: 'normal' },
       Eosinophils:           { value: '3',    unit: '%',       refRange: '1–6',       status: 'normal' },
       Basophils:             { value: '0.5',  unit: '%',       refRange: '0.0–2.0',   status: 'normal' },
-      Platelets:              { value: '210',  unit: '×10⁹/L', refRange: '150–400',   status: 'normal' },
+      Platelets:              { value: '2.10', unit: 'lakhs/cumm',    refRange: '1.5–4.1',    status: 'normal' },
       'Reticulocyte':         { value: '',     unit: '%',       refRange: '0.5–2.5',  status: undefined },
       NLR:                    { value: '2.0',  unit: 'ratio',   refRange: '0.78–3.53', status: 'normal' },
     },
@@ -329,7 +329,7 @@ export const mockData: AppData = (() => {
       'Total IgE': { value: '', unit: 'IU/mL', refRange: '<100', status: undefined },
     },
     'Hormones · Optional': {
-      'SHBG':                       { value: '', unit: 'nmol/L', refRange: '10–57',    status: undefined },
+      'SHBG':                       { value: '', unit: 'nmol/L', refRange: '32.4–128', status: undefined },
       'Total Testosterone (men)':   { value: '', unit: 'ng/dL',  refRange: '300–1000', status: undefined },
       'Free Testosterone (men)':    { value: '', unit: 'pg/mL',  refRange: '50–210',   status: undefined },
       'Estradiol (women)':          { value: '', unit: 'pg/mL',  refRange: '30–400',   status: undefined },

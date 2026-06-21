@@ -257,6 +257,16 @@ export const mockData: AppData = (() => {
         delete tests['Total Testosterone (men)']
       }
     }
+    // Inject Total T3 / Total T4 for existing patients who pre-date these fields
+    const thyroid = bp['Thyroid']
+    if (thyroid) {
+      if (!thyroid['Total T3'] || thyroid['Total T3'].value === '') {
+        thyroid['Total T3'] = { value: '1.05', unit: 'ng/mL', refRange: '0.87–1.78', status: undefined }
+      }
+      if (!thyroid['Total T4'] || thyroid['Total T4'].value === '') {
+        thyroid['Total T4'] = { value: '7.3', unit: 'µg/dL', refRange: '4.5–12.5', status: undefined }
+      }
+    }
     // ── end migration ────────────────────────────────────────────────────────
     return stored
   }
@@ -346,9 +356,11 @@ export const mockData: AppData = (() => {
       'hs-CRP':            { value: '2.1', unit: 'mg/L',  refRange: '<3.0',    status: 'borderline' },
     },
     'Thyroid': {
-      'TSH':  { value: '2.1', unit: 'mIU/L', refRange: '0.4–4.0', status: 'normal' },
-      'FT3':  { value: '3.1', unit: 'pg/mL', refRange: '2.3–4.2', status: 'normal' },
-      'FT4':  { value: '1.2', unit: 'ng/dL', refRange: '0.8–1.8', status: 'normal' },
+      'TSH':     { value: '2.1',  unit: 'mIU/L', refRange: '0.4–4.0',   status: 'normal'    },
+      'FT3':     { value: '3.1',  unit: 'pg/mL', refRange: '2.3–4.2',   status: 'normal'    },
+      'FT4':     { value: '1.2',  unit: 'ng/dL', refRange: '0.8–1.8',   status: 'normal'    },
+      'Total T3': { value: '',    unit: 'ng/mL', refRange: '0.87–1.78', status: undefined   },
+      'Total T4': { value: '',    unit: 'µg/dL', refRange: '4.5–12.5',  status: undefined   },
     },
     'Urinalysis': {
       'Colour & Transparency': { value: 'Yellow, Clear', unit: '',    refRange: 'Yellow, Clear',  status: 'normal' },

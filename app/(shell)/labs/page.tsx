@@ -42,7 +42,7 @@ const NARRATIVES: Record<string, string> = {
   'Kidney Function':               'Creatinine and eGFR are excellent. Urea, uric acid, and BUN/creatinine ratio are all within range.',
   'Metabolic':                     'Glucose and HbA1c are good. HOMA-IR is slightly elevated, an early signal of insulin resistance.',
   'Lipids & Cardiac':              'Cholesterol is well-managed. Non-HDL and TG/HDL ratio are mildly high. hs-CRP is borderline — monitoring inflammation alongside lipids is useful.',
-  'Thyroid':                       'TSH, FT3, and FT4 are all within normal range.',
+  'Thyroid':                       'TSH, FT3, FT4, Total T3, and Total T4 measure thyroid hormone production and conversion.',
   'Urinalysis':                    'All urinalysis markers are normal.',
   'Hormones':                      'Adrenal hormones (cortisol, DHEA-S) reflect stress response and vitality. Sex hormones (SHBG, testosterone, oestradiol, FSH, LH) reflect reproductive and metabolic function.',
   // Placeholder-only — shown only when no data is recorded (see accordion logic).
@@ -222,6 +222,8 @@ const PARAM_DESC: Record<string, string> = {
   TSH:                      'Thyroid-stimulating hormone — produced by the pituitary to regulate the thyroid gland. The best single screening test for thyroid dysfunction.',
   FT3:                      'Free triiodothyronine — the most biologically active thyroid hormone. Low levels cause fatigue, weight gain, and cold sensitivity.',
   FT4:                      'Free thyroxine — the main hormone produced by the thyroid, which converts to FT3 in tissues. Used alongside TSH to diagnose hypothyroidism.',
+  'Total T3':               'Total triiodothyronine — mostly protein-bound. Used alongside FT3 to assess overall thyroid hormone output. Ref 0.87–1.78 ng/mL.',
+  'Total T4':               'Total thyroxine — includes protein-bound fraction. Elevated in hyperthyroidism; low in hypothyroidism. Ref 4.5–12.5 µg/dL.',
   'Morning Cortisol':       'Your main stress hormone, naturally highest in the morning. Chronically elevated or low cortisol disrupts energy, sleep, immune function, and metabolism.',
   'DHEA-S':                 'A precursor hormone made by the adrenal glands that converts to testosterone and oestrogen. Declines with age and chronic stress.',
   'Colour & Transparency':  'A basic visual check of urine. Abnormal colour or cloudiness may indicate infection, dehydration, or blood.',

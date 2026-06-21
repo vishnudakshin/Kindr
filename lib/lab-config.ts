@@ -93,7 +93,7 @@ export const PANEL_GROUPS: Record<string, string[]> = {
     'Total Cholesterol', 'HDL', 'LDL', 'Triglycerides', 'Non-HDL',
     'TC/HDL Ratio', 'TG/HDL Ratio', 'ApoB', 'Lp(a)', 'hs-CRP',
   ],
-  'Thyroid': ['TSH', 'FT3', 'FT4'],
+  'Thyroid': ['TSH', 'FT3', 'FT4', 'Total T3', 'Total T4'],
   'Urinalysis': [
     'Colour & Transparency', 'Protein', 'Glucose', 'Ketones', 'pH',
     'RBC', 'Pus Cells', 'Casts', 'Crystals',
@@ -291,6 +291,10 @@ export const BIOMARKERS: Record<string, BiomarkerDef> = {
     note: '4–10 with normal FT4 = subclinical hypothyroidism (monitor).' },
   'FT3': { unit: 'pg/mL', system: 'Thyroid', direction: 'two_sided', ref: { low: 2.3, high: 4.2 } },
   'FT4': { unit: 'ng/dL', system: 'Thyroid', direction: 'two_sided', ref: { low: 0.8, high: 1.8 } },
+  'Total T3': { unit: 'ng/mL', system: 'Thyroid', direction: 'two_sided', ref: { low: 0.87, high: 1.78 },
+    note: 'Total triiodothyronine — mostly protein-bound. Useful alongside FT3 to assess overall thyroid output. Ref 0.87–1.78 ng/mL.' },
+  'Total T4': { unit: 'µg/dL', system: 'Thyroid', direction: 'two_sided', ref: { low: 4.5, high: 12.5 },
+    note: 'Total thyroxine — includes protein-bound fraction. Ref 4.5–12.5 µg/dL. Elevated in hyperthyroidism, low in hypothyroidism.' },
 
   // ── Hormones → Hormones ─────────────────────────────────────────────────
   'Morning Cortisol': { unit: 'µg/dL', system: 'Hormones', direction: 'two_sided', ref: { low: 6, high: 18 },

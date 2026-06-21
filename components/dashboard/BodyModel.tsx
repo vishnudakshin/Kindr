@@ -19,6 +19,11 @@ const DOT_R      = 5
 // Groups that split further into labelled sub-sections within the sheet.
 // Keys are panel group names; values define the sub-section labels and tests.
 const SHEET_SUBGROUPS: Record<string, { label: string; tests: string[] }[]> = {
+  'Thyroid': [
+    { label: 'Pituitary signal', tests: ['TSH'] },
+    { label: 'Free',             tests: ['FT3', 'FT4'] },
+    { label: 'Total',            tests: ['Total T3', 'Total T4'] },
+  ],
   'Vitamins & Minerals': [
     { label: 'Vitamins',  tests: ['Vitamin D (25-OH)', 'Folate (B9)', 'Vitamin B12'] },
     { label: 'Minerals',  tests: ['Sodium', 'Potassium', 'Chloride', 'Bicarbonate', 'Calcium', 'Magnesium'] },

@@ -445,7 +445,7 @@ function Step1History({ history, setHistory }: { history: HistoryResponses; setH
               <span className="font-serif text-[42px] font-medium text-ink leading-none">{bmi.toFixed(1)}</span>
               <div>
                 <p className="text-[15px] font-semibold text-ink">{cat}</p>
-                <p className="text-[12px] text-ink-2">Healthy range: 18.5 – 24.9</p>
+                <p className="text-[12px] text-ink-2">Healthy range: 18.5 – 22.9 (South Asian norm)</p>
               </div>
             </div>
             <div className="relative">

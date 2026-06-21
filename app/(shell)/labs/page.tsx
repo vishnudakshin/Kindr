@@ -63,6 +63,11 @@ const SUBGROUPS: Record<string, { label: string; tests: string[] }[]> = {
     { label: 'Lipids', tests: ['Total Cholesterol', 'HDL', 'LDL', 'Triglycerides', 'VLDL Cholesterol', 'Non-HDL', 'TC/HDL Ratio', 'TG/HDL Ratio', 'ApoB', 'Lp(a)'] },
     { label: 'Cardiac inflammation', tests: ['hs-CRP'] },
   ],
+  'Thyroid': [
+    { label: 'Pituitary signal', tests: ['TSH'] },
+    { label: 'Free',             tests: ['FT3', 'FT4'] },
+    { label: 'Total',            tests: ['Total T3', 'Total T4'] },
+  ],
   'Hormones': [
     { label: 'Adrenal', tests: ['Morning Cortisol', 'DHEA-S'] },
     { label: 'Sex hormones', tests: ['SHBG', 'Total Testosterone', 'Free Testosterone (men)', 'Estradiol (women)', 'FSH (women)', 'LH (women)'] },

@@ -197,12 +197,12 @@ export const DERIVATIONS: Derivation[] = [
       return round2(Math.log10((tg / 88.57) / (hdl / 38.67)))
     },
   },
-  { // FAI = (Total Testosterone [ng/dL] × 0.03467 × 100) / SHBG [nmol/L]
+  { // FAI = (Total Testosterone [ng/mL] × 3.467 × 100) / SHBG [nmol/L]
     name: 'FAI', group: 'Hormones',
     compute: (p) => {
       const tt = findPanelValue(p, 'Total Testosterone'), shbg = findPanelValue(p, 'SHBG')
       if (tt === null || !shbg || shbg <= 0) return null
-      return round2((tt * 3.467) / shbg)
+      return round2((tt * 346.7) / shbg)
     },
   },
   { // DHEA-S:Cortisol ratio — both inputs in µg/dL
@@ -356,6 +356,27 @@ export function interpretPanel(panel: BloodPanel, history: HistoryResponses): La
       const st = interpretBiomarker(d.name, derivedResult(d.name), ctx, d.group)
       st.flags.push('derived')
       biomarkers.push(st)
+    }
+  }
+
+  // Inject pending FAI when TT is entered but SHBG is not yet — shows as '–' in UI
+  if (!derived.has('FAI') && !seen.has('FAI')) {
+    const ttVal = findPanelValue(panel, 'Total Testosterone')
+    const shbgVal = findPanelValue(panel, 'SHBG')
+    if (ttVal !== null && shbgVal === null) {
+      biomarkers.push({
+        name: 'FAI',
+        system: 'Hormones',
+        value: null,
+        unit: '',
+        tier: 'unknown',
+        refRange: null,
+        direction: 'high_bad',
+        flags: ['derived'],
+        refer: false,
+        crossLinks: [],
+        note: 'Requires SHBG to calculate. Enter your SHBG result to see your Free Androgen Index.',
+      })
     }
   }
 

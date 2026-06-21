@@ -589,7 +589,7 @@ function DerivedIndicesSection({
   const derived = DERIVED_ORDER
     .map(name => bioMarkerMap.get(name))
     .filter((b): b is BiomarkerStatus =>
-      !!b && b.flags.includes('derived') && b.value !== null && !rawNames.has(b.name)
+      !!b && b.flags.includes('derived') && (b.value !== null || b.tier === 'unknown') && !rawNames.has(b.name)
     )
 
   if (derived.length === 0) return null

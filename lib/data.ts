@@ -235,6 +235,7 @@ export const mockData: AppData = (() => {
       if ('Total Testosterone (men)' in merged) {
         merged['Total Testosterone'] = {
           ...merged['Total Testosterone (men)'],
+          value: merged['Total Testosterone (men)'].value || '0.262',
           unit: 'ng/mL',
           refRange: '0.084–0.481',
         }
@@ -249,6 +250,7 @@ export const mockData: AppData = (() => {
       if ('Total Testosterone (men)' in tests) {
         tests['Total Testosterone'] = {
           ...tests['Total Testosterone (men)'],
+          value: tests['Total Testosterone (men)'].value || '0.262',
           unit: 'ng/mL',
           refRange: '0.084–0.481',
         }
@@ -533,8 +535,8 @@ export interface BodySystem {
 
 export const STATUS_META: Record<SystemStatus, { color: string; label: string }> = {
   optimal: { color: '#2E7D32', label: 'Optimal' },
-  monitor: { color: '#C77D2E', label: 'Monitor' },
-  action:  { color: '#C0392B', label: 'Needs attention' },
+  monitor: { color: '#C77D2E', label: 'Needs attention' },
+  action:  { color: '#C77D2E', label: 'Needs attention' },
   urgent:  { color: '#7D1A1A', label: 'Urgent' },
 }
 

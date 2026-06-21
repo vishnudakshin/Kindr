@@ -38,7 +38,7 @@ function tierColor(tier: BiomarkerTier): string {
 function markerLabel(sys: BodySystem): string {
   const n = sys.markerCount
   const d = sys.deficientCount
-  return `${n} marker${n !== 1 ? 's' : ''} · ${d === 0 ? 'all in range' : `${d} deficient`}`
+  return `${n} marker${n !== 1 ? 's' : ''} · ${d === 0 ? 'all in range' : `${d} out of range`}`
 }
 
 // ── System detail sheet ───────────────────────────────────────────────────────

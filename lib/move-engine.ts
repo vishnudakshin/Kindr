@@ -102,7 +102,7 @@ export function buildMoveContext(
       glucose:     labVal(labInterp, 'Fasting Glucose'),
       nonHDL:      labVal(labInterp, 'Non-HDL'),
       tg:          labVal(labInterp, 'Triglycerides'),
-      testosterone: labVal(labInterp, 'Total Testosterone (men)'),
+      testosterone: labVal(labInterp, 'Total Testosterone'),
       hsCRP:       labVal(labInterp, 'hs-CRP'),
     },
     symptoms: {

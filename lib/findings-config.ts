@@ -137,6 +137,22 @@ export const FINDING_RULES: FindingRule[] = [
     },
   },
 
+  {
+    id: 'allergy_atopy', title: 'Allergic sensitisation pattern', system: 'Blood & immune', pillars: ['Nourish', 'Clinical'],
+    detect: (c) => {
+      if (!c.above('Total IgE')) return null
+      const biomarkers = ['Total IgE']
+      const signals: string[] = []
+      if (c.above('Eosinophils')) { biomarkers.push('Eosinophils'); signals.push('eosinophilia') }
+      if (c.symptom(/breath|skin|itch|sneez|rash/)) signals.push('allergic symptoms reported')
+      return {
+        biomarkers, signals,
+        baseSeverity: c.above('Eosinophils') ? 'moderate' : 'low',
+        detail: 'Total IgE is raised, pointing to an atopic (allergic) tendency. Identifying specific triggers (food, environmental) and supporting gut and immune health through an anti-inflammatory diet can reduce the overall allergic load.',
+      }
+    },
+  },
+
   // ============================ Inflammation ============================
   {
     id: 'inflammation', title: 'Inflammatory load', system: 'Heart', pillars: ['Calm', 'Nourish'],
@@ -280,6 +296,7 @@ export const FINDING_RULES: FindingRule[] = [
     detect: (c) => {
       const lip = ['LDL', 'ApoB', 'Non-HDL', 'TC/HDL Ratio', 'Total Cholesterol', 'Lp(a)', 'Remnant Cholesterol'].filter(n => c.above(n))
       if (c.below('HDL')) lip.push('HDL')
+      if (c.above('AIP')) lip.push('AIP')
       if (lip.length === 0) return null
       const signals: string[] = []
       if (c.domainLow('activity')) signals.push('low activity')
@@ -362,6 +379,23 @@ export const FINDING_RULES: FindingRule[] = [
     },
   },
 
+  {
+    id: 'low_ag_ratio', title: 'Low albumin-to-globulin ratio', system: 'Liver', pillars: ['Clinical'],
+    detect: (c) => {
+      if (!c.below('A/G Ratio')) return null
+      const biomarkers = ['A/G Ratio']
+      const signals: string[] = []
+      if (c.below('Albumin')) { biomarkers.push('Albumin'); signals.push('low albumin') }
+      if (c.above('Globulin')) { biomarkers.push('Globulin'); signals.push('raised globulin') }
+      if (c.above('hs-CRP') || c.above('ESR')) signals.push('inflammation present')
+      return {
+        biomarkers, signals,
+        baseSeverity: 'moderate', refer: true,
+        detail: 'A low albumin-to-globulin ratio can reflect reduced albumin production (a liver synthetic issue) or raised globulin (chronic inflammation, immune activation, or rarely a monoclonal protein). A clinician can determine which is driving it.',
+      }
+    },
+  },
+
   // ============================ Kidney (incl. urinalysis) ============================
   {
     id: 'kidney_function', title: 'Kidney markers need review', system: 'Kidney', pillars: ['Clinical'],
@@ -401,6 +435,37 @@ export const FINDING_RULES: FindingRule[] = [
       return {
         biomarkers: e, signals: [], baseSeverity: urgent ? 'urgent' : 'high', refer: true,
         detail: 'An electrolyte is outside range; this should be reviewed by a clinician.',
+      }
+    },
+  },
+
+  {
+    id: 'anion_gap_elevated', title: 'Elevated anion gap', system: 'Kidney', pillars: ['Clinical'],
+    detect: (c) => {
+      if (!c.above('Anion Gap')) return null
+      const biomarkers = ['Anion Gap']
+      if (c.above('Creatinine') || c.below('eGFR')) biomarkers.push('Creatinine')
+      if (c.above('Fasting Glucose') || c.abnormal('HbA1c')) biomarkers.push('Fasting Glucose')
+      return {
+        biomarkers, signals: [],
+        baseSeverity: 'high', refer: true,
+        detail: 'The anion gap is elevated, indicating an acid–base disturbance. This warrants clinical evaluation to identify the underlying cause (kidney impairment, blood sugar dysregulation, lactic acidosis, or other metabolic factors).',
+      }
+    },
+  },
+  {
+    id: 'hyperuricemia', title: 'Elevated uric acid', system: 'Kidney', pillars: ['Nourish'],
+    detect: (c) => {
+      if (!c.above('Uric Acid')) return null
+      const signals: string[] = []
+      if (c.anthro(/adiposity|obese|waist/)) signals.push('central adiposity')
+      if (c.alcoholRisk) signals.push('higher-risk alcohol use')
+      if (c.watchOrWorse('HOMA-IR') || c.watchOrWorse('TG/HDL Ratio')) signals.push('metabolic resistance signals')
+      return {
+        biomarkers: ['Uric Acid'], signals,
+        baseSeverity: c.refer('Uric Acid') ? 'high' : 'moderate',
+        refer: c.refer('Uric Acid'),
+        detail: 'Uric acid is above the reference range. Beyond gout risk, hyperuricemia tracks closely with insulin resistance, central adiposity, and high fructose or alcohol intake — all modifiable with diet and activity.',
       }
     },
   },
@@ -449,7 +514,7 @@ export const FINDING_RULES: FindingRule[] = [
     id: 'low_testosterone_men', title: 'Low testosterone', system: 'Hormones', pillars: ['Move', 'Clinical'],
     detect: (c) => {
       if (c.sex !== 'male') return null
-      const t = ['Total Testosterone (men)', 'Free Testosterone (men)'].filter(n => c.below(n))
+      const t = ['Total Testosterone', 'Free Testosterone (men)'].filter(n => c.below(n))
       if (t.length === 0) return null
       const signals: string[] = []
       if (c.symptom(/libido/)) signals.push('low libido')
@@ -466,13 +531,51 @@ export const FINDING_RULES: FindingRule[] = [
     detect: (c) => {
       const cort = c.value('Morning Cortisol'), dhea = c.value('DHEA-S')
       const highRatio = cort !== null && dhea !== null && dhea > 0 && (cort / dhea) > 0.2
-      const fired = c.above('Morning Cortisol') || (c.below('DHEA-S') && c.domainLow('stress')) || (highRatio && c.domainLow('stress'))
+      const lowDheaCortRatio = c.below('DHEA-S:Cortisol')
+      const fired = c.above('Morning Cortisol') || (c.below('DHEA-S') && c.domainLow('stress')) || (highRatio && c.domainLow('stress')) || lowDheaCortRatio
       if (!fired) return null
       const biomarkers = ['Morning Cortisol', 'DHEA-S'].filter(n => c.above(n) || c.below(n))
+      if (lowDheaCortRatio && !biomarkers.includes('DHEA-S:Cortisol')) biomarkers.push('DHEA-S:Cortisol')
       const signals = c.domainLow('stress') ? ['high perceived stress'] : []
       return {
         biomarkers: biomarkers.length ? biomarkers : ['Morning Cortisol'], signals, baseSeverity: 'moderate',
-        detail: 'Stress hormones and your self-reported stress line up, suggesting an activated stress response; recovery, sleep, and breathwork are the levers.',
+        detail: 'Stress hormones and your self-reported stress align. A low DHEA-S:Cortisol ratio reflects cortisol dominance; recovery, sleep, and breathwork are the primary levers.',
+      }
+    },
+  },
+
+  {
+    id: 'high_androgen_women', title: 'Androgen excess pattern', system: 'Hormones', pillars: ['Nourish', 'Move', 'Clinical'],
+    detect: (c) => {
+      if (c.sex !== 'female' || c.menopausal) return null
+      const markers = ['Total Testosterone', 'FAI'].filter(n => c.above(n))
+      if (markers.length === 0) return null
+      const signals: string[] = []
+      if (c.symptom(/hair_loss/)) signals.push('hair changes / hair loss')
+      if (c.anthro(/adiposity|obese|waist/)) signals.push('central adiposity')
+      if (c.watchOrWorse('HOMA-IR') || c.watchOrWorse('HbA1c')) signals.push('insulin resistance signals')
+      return {
+        biomarkers: markers, signals,
+        baseSeverity: 'moderate', refer: true,
+        detail: 'Testosterone or the Free Androgen Index is above the female reference range. Androgen excess in women can reflect PCOS, adrenal overactivity, or other causes — a clinical evaluation helps identify the driver.',
+      }
+    },
+  },
+  {
+    id: 'low_shbg', title: 'Low SHBG', system: 'Hormones', pillars: ['Nourish', 'Move'],
+    detect: (c) => {
+      if (!c.below('SHBG')) return null
+      const metabolic = c.watchOrWorse('HOMA-IR') || c.watchOrWorse('TG/HDL Ratio') || c.anthro(/adiposity|obese|waist/)
+      const signals: string[] = []
+      if (metabolic) signals.push('metabolic resistance signals')
+      if (c.sex === 'female') signals.push('early insulin-driven suppression (PCOS risk)')
+      const biomarkers: string[] = ['SHBG']
+      if (c.above('Total Testosterone')) biomarkers.push('Total Testosterone')
+      if (c.above('FAI')) biomarkers.push('FAI')
+      return {
+        biomarkers, signals,
+        baseSeverity: metabolic ? 'moderate' : 'low',
+        detail: 'SHBG is below the reference range. Low SHBG increases free hormone exposure and is an early insulin-resistance marker — particularly in women, where it can precede other PCOS features. Reducing refined carbs and increasing activity are the most evidence-backed levers.',
       }
     },
   },
@@ -801,8 +904,12 @@ export const FINDING_RULES: FindingRule[] = [
       const signals: string[] = []
       if (c.symptom(/hair_loss/)) signals.push('hair changes')
       if (c.anthro(/adiposity|obese|waist/)) signals.push('central adiposity')
+      if (c.above('Total Testosterone') || c.above('FAI')) signals.push('androgen excess markers')
+      const pcBiomarkers: string[] = ['LH/FSH Ratio', ...['HOMA-IR', 'HbA1c'].filter(n => c.watchOrWorse(n))]
+      if (c.above('Total Testosterone')) pcBiomarkers.push('Total Testosterone')
+      if (c.above('FAI')) pcBiomarkers.push('FAI')
       return {
-        biomarkers: ['LH/FSH Ratio', ...['HOMA-IR', 'HbA1c'].filter(n => c.watchOrWorse(n))], signals,
+        biomarkers: pcBiomarkers, signals,
         baseSeverity: 'moderate', refer: true,
         detail: 'An LH:FSH ratio above 2 alongside insulin-resistance signals can point toward PCOS. Cycle timing strongly affects these hormones, so this is a prompt to discuss with a clinician, not a diagnosis.',
       }

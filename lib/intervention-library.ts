@@ -637,4 +637,34 @@ export const INTERVENTION_MAP: InterventionMap = {
   electrolyte: [
     { interventionId: 'nr_hydration', relevance: 0.5 },
   ],
+  high_androgen_women: [
+    { interventionId: 'mv_aerobic_150',        relevance: 0.8, grade: 'strong' },
+    { interventionId: 'mv_strength_2x',         relevance: 0.7 },
+    { interventionId: 'nr_refined_carb_swap',   relevance: 0.7 },
+    { interventionId: 'mv_postmeal_walk',        relevance: 0.6 },
+    { interventionId: 'nr_soluble_fibre_oats',  relevance: 0.5 },
+  ],
+  low_shbg: [
+    { interventionId: 'nr_refined_carb_swap',   relevance: 0.8 },
+    { interventionId: 'mv_aerobic_150',          relevance: 0.7 },
+    { interventionId: 'mv_strength_2x',          relevance: 0.6 },
+    { interventionId: 'nr_soluble_fibre_oats',  relevance: 0.5 },
+  ],
+  hyperuricemia: [
+    { interventionId: 'nr_hydration',           relevance: 0.9 },
+    { interventionId: 'nr_refined_carb_swap',   relevance: 0.7 },
+    { interventionId: 'mv_aerobic_150',          relevance: 0.5 },
+  ],
+  anion_gap_elevated: [
+    { interventionId: 'nr_hydration',           relevance: 0.5 },
+  ],
+  allergy_atopy: [
+    { interventionId: 'nr_colour_variety',      relevance: 0.7 },
+    { interventionId: 'nr_veg_half_plate',      relevance: 0.6 },
+    { interventionId: 'nr_oily_fish',           relevance: 0.5 },
+  ],
+  low_ag_ratio: [
+    { interventionId: 'nr_veg_half_plate',      relevance: 0.6 },
+    { interventionId: 'nr_colour_variety',      relevance: 0.5 },
+  ],
 }

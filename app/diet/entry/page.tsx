@@ -2,75 +2,107 @@
 
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import { IconChevronLeft } from '@tabler/icons-react'
 import { BrandHeader } from '@/components/ui/BrandHeader'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
-import { saveDietLog, getDietLog, saveDietaryGoal, getDietaryGoal, mockData } from '@/lib/data'
+import {
+  saveDietLog, getDietLog, saveDietaryGoal, getDietaryGoal,
+  saveDietAssessment, getDietAssessment, mockData,
+} from '@/lib/data'
 import {
   FOOD_DB, FOOD_MAP, mealKcal, mealMacros, estimateDietCalories, estimateDietMacros,
-  computeTDEE, computeMacroTargets,
+  deriveActivityLevel, computeTDEEFromLevel, computeTargetCalories, computeMacroTargetsV2,
+  ACTIVITY_LABEL_SHORT, ACTIVITY_LABEL_FULL, ACTIVITY_MULTIPLIER, PACE_KCAL,
   type MealSlot,
 } from '@/lib/nutrition-table'
-import type { DietLog, DietMeal, MacroNutrients, DietaryGoal } from '@/lib/types'
+import type {
+  DietLog, DietMeal,
+  DietaryGoal, DietPace, MacroApproach, DietVariability, ActivityLevel,
+} from '@/lib/types'
 
-// ── Goal config ───────────────────────────────────────────────────────────────
+// ── Constants ─────────────────────────────────────────────────────────────────
 
-const GOALS: { id: DietaryGoal; label: string; sub: string; multiplier: number }[] = [
-  { id: 'lose_weight',  label: 'Lose weight',  sub: '~15% deficit', multiplier: 0.85 },
-  { id: 'maintain',     label: 'Maintain',     sub: 'Energy balance', multiplier: 1.0  },
-  { id: 'gain_muscle',  label: 'Gain muscle',  sub: '~10% surplus', multiplier: 1.10 },
+const GOALS: { id: DietaryGoal; label: string; emoji: string; sub: string }[] = [
+  { id: 'lose_weight',  label: 'Lose weight',   emoji: '↓', sub: 'Calorie deficit' },
+  { id: 'maintain',     label: 'Maintain',       emoji: '→', sub: 'Energy balance'  },
+  { id: 'gain_weight',  label: 'Gain weight',    emoji: '↑', sub: 'Calorie surplus' },
+  { id: 'gain_muscle',  label: 'Build muscle',   emoji: '↑', sub: 'Lean bulk'       },
+]
+
+const PACES: { id: DietPace; label: string; sub: string }[] = [
+  { id: 'gentle', label: 'Gentle',  sub: '~0.25 kg/week' },
+  { id: 'steady', label: 'Steady',  sub: '~0.5 kg/week'  },
+  { id: 'faster', label: 'Faster',  sub: '~0.75–1 kg/week' },
+]
+
+const MACRO_APPROACHES: { id: MacroApproach; label: string; sub: string }[] = [
+  { id: 'balanced',     label: 'Balanced',       sub: '50% carbs · 30% fat · 20% protein' },
+  { id: 'high_protein', label: 'Higher protein',  sub: 'Good for muscle & strength'         },
+  { id: 'low_carb',     label: 'Lower carb',      sub: '<100g carbs/day, more fat'          },
+  { id: 'custom',       label: 'Let me customise', sub: 'Set your own targets'               },
+]
+
+const ACTIVITY_LEVELS: ActivityLevel[] = ['sedentary', 'light', 'moderate', 'active', 'very_active']
+
+const VARIABILITY_OPTIONS: { id: DietVariability; label: string }[] = [
+  { id: 'consistent',   label: 'Pretty consistent'   },
+  { id: 'varies_bit',   label: 'Varies a bit'        },
+  { id: 'varies_lot',   label: 'Varies a lot'        },
+]
+
+const EMPTY_MEAL = (): DietMeal => ({ selections: {}, freeText: '' })
+const EMPTY_LOG  = (): DietLog => ({
+  breakfast:   EMPTY_MEAL(),
+  midMorning:  EMPTY_MEAL(),
+  lunch:       EMPTY_MEAL(),
+  evening:     EMPTY_MEAL(),
+  dinner:      EMPTY_MEAL(),
+  beverages:   EMPTY_MEAL(),
+  supplements: '',
+})
+
+const MEAL_CONFIG: { slot: MealSlot; label: string; placeholder: string }[] = [
+  {
+    slot: 'breakfast', label: 'Breakfast',
+    placeholder: 'e.g. 2 idli with sambar and chutney, 1 cup chai',
+  },
+  {
+    slot: 'lunch', label: 'Lunch',
+    placeholder: 'e.g. rice, dal, sabzi, small bowl of curd',
+  },
+  {
+    slot: 'dinner', label: 'Dinner',
+    placeholder: 'e.g. 2 chapati, vegetable curry, raita',
+  },
+  {
+    slot: 'beverages', label: 'Snacks & beverages',
+    placeholder: 'e.g. morning chai, afternoon fruit, evening biscuits or nuts',
+  },
 ]
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const EMPTY_MEAL = (): DietMeal => ({ selections: {}, freeText: '' })
-const EMPTY_LOG  = (): DietLog => ({
-  breakfast:  EMPTY_MEAL(),
-  midMorning: EMPTY_MEAL(),
-  lunch:      EMPTY_MEAL(),
-  evening:    EMPTY_MEAL(),
-  dinner:     EMPTY_MEAL(),
-  beverages:  EMPTY_MEAL(),
-  supplements: '',
-})
-
-const MEAL_CONFIG: { slot: MealSlot; label: string; sub: string }[] = [
-  { slot: 'breakfast',  label: 'Breakfast',    sub: 'Your typical morning meal' },
-  { slot: 'midMorning', label: 'Mid-morning',  sub: 'Snack or drink between breakfast and lunch' },
-  { slot: 'lunch',      label: 'Lunch',        sub: 'Your midday meal' },
-  { slot: 'evening',    label: 'Evening',      sub: 'Evening snack or tea-time' },
-  { slot: 'dinner',     label: 'Dinner',       sub: 'Your evening meal' },
-  { slot: 'beverages',  label: 'Beverages',    sub: 'Drinks throughout the day (excluding water)' },
-]
-
-// ── MacroBar ─────────────────────────────────────────────────────────────────
-
-function MacroBar({
-  label, value, target, unit = 'g', color = 'bg-ink',
+function Chip({
+  active, onClick, children, size = 'md',
 }: {
-  label: string; value: number; target?: number; unit?: string; color?: string
+  active: boolean; onClick: () => void; children: React.ReactNode; size?: 'sm' | 'md'
 }) {
-  const pct = target && target > 0 ? Math.min(100, Math.round((value / target) * 100)) : null
   return (
-    <div className="flex items-center gap-2">
-      <span className="text-[11px] text-ink-2 w-14 shrink-0">{label}</span>
-      <span className="text-[12px] font-medium text-ink w-12 shrink-0 tabular-nums">
-        ~{Math.round(value)}{unit}
-      </span>
-      {pct !== null && (
-        <div className="flex-1 h-1 bg-border rounded-full overflow-hidden">
-          <div
-            className={`h-full rounded-full transition-all ${color}`}
-            style={{ width: `${pct}%` }}
-          />
-        </div>
-      )}
-      {target !== undefined && (
-        <span className="text-[11px] text-ink-2 shrink-0 tabular-nums">
-          /{Math.round(target)}{unit}
-        </span>
-      )}
-    </div>
+    <button
+      onClick={onClick}
+      className={`border rounded-full transition-colors cursor-pointer
+        ${size === 'sm' ? 'px-3 py-1 text-[12px]' : 'px-4 py-2 text-[13px]'}
+        ${active ? 'bg-ink border-ink text-card' : 'bg-card border-border text-ink hover:border-ink-2'}`}
+    >
+      {children}
+    </button>
+  )
+}
+
+function SectionLabel({ children }: { children: string }) {
+  return (
+    <p className="text-[11px] tracking-[.07em] uppercase text-ink-2 mb-2 mt-5">{children}</p>
   )
 }
 
@@ -82,9 +114,9 @@ interface BreakdownItem {
 }
 
 function MealSection({
-  slot, label, sub, meal, onChange,
+  slot, label, placeholder, meal, onChange,
 }: {
-  slot: MealSlot; label: string; sub: string
+  slot: MealSlot; label: string; placeholder: string
   meal: DietMeal; onChange: (m: DietMeal) => void
 }) {
   const foods    = FOOD_DB.filter(f => f.meals.includes(slot))
@@ -137,130 +169,126 @@ function MealSection({
   const hasEstimate = meal.freeTextKcal != null && !textChanged
 
   return (
-    <div className="mb-1">
-      <Card className="mb-3">
-        {/* Section header */}
-        <div className="flex items-baseline justify-between mb-0.5">
-          <p className="text-[14px] font-medium text-ink">{label}</p>
-          {kcal > 0 && (
-            <span className="text-[12px] text-ink-2">~{kcal} kcal</span>
-          )}
-        </div>
-        <p className="text-[12px] text-ink-2 mb-2">{sub}</p>
+    <Card className="mb-3">
+      <div className="flex items-baseline justify-between mb-1">
+        <p className="text-[14px] font-medium text-ink">{label}</p>
+        {kcal > 0 && <span className="text-[12px] text-ink-2">~{kcal} kcal</span>}
+      </div>
+      {kcal > 0 && (
+        <p className="text-[11px] text-ink-2 mb-3">
+          P {Math.round(macros.protein_g)}g · C {Math.round(macros.carb_g)}g · F {Math.round(macros.fat_g)}g
+        </p>
+      )}
 
-        {/* Inline macro summary for this meal */}
-        {kcal > 0 && (
-          <p className="text-[11px] text-ink-2 mb-3">
-            P {Math.round(macros.protein_g)}g · C {Math.round(macros.carb_g)}g · F {Math.round(macros.fat_g)}g · Fi {Math.round(macros.fiber_g)}g
-          </p>
-        )}
-
-        {/* Food chip grid */}
-        <div className="flex flex-wrap gap-2 mb-3">
-          {foods.map(food => (
+      {/* Food chips with kcal */}
+      <div className="flex flex-wrap gap-1.5 mb-3">
+        {foods.map(food => {
+          const defaultKcal = food.portions[0]?.kcal
+          return (
             <button
               key={food.id}
               onClick={() => toggleFood(food.id)}
-              className={`border rounded-[20px] px-3 py-1.5 text-[12px] cursor-pointer transition-colors
+              className={`border rounded-[20px] px-3 py-1.5 text-[12px] cursor-pointer transition-colors leading-none
                 ${meal.selections[food.id]
-                  ? 'bg-ink border-ink text-bg'
+                  ? 'bg-ink border-ink text-card'
                   : 'bg-card border-border text-ink hover:border-ink'}`}
             >
               {food.name}
+              {defaultKcal !== undefined && (
+                <span className={`ml-1.5 text-[10px] ${meal.selections[food.id] ? 'opacity-60' : 'text-ink-2'}`}>
+                  {defaultKcal} kcal
+                </span>
+              )}
             </button>
-          ))}
-        </div>
+          )
+        })}
+      </div>
 
-        {/* Selected items + portion pickers */}
-        {selected.length > 0 && (
-          <div className="bg-bg rounded-xl p-3 mb-3 space-y-3">
-            {selected.map(foodId => {
-              const food = FOOD_MAP[foodId]
-              if (!food) return null
-              return (
-                <div key={foodId}>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[13px] font-medium text-ink">{food.name}</span>
-                    <button
-                      onClick={() => toggleFood(foodId)}
-                      className="text-[11px] text-ink-2 hover:text-ink transition-colors"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {food.portions.map(p => (
-                      <button
-                        key={p.label}
-                        onClick={() => setPortion(foodId, p.label)}
-                        className={`border rounded-[14px] px-2.5 py-1 text-[11px] cursor-pointer transition-colors
-                          ${meal.selections[foodId] === p.label
-                            ? 'bg-ink border-ink text-bg'
-                            : 'bg-card border-border text-ink-2 hover:border-ink'}`}
-                      >
-                        {p.label} · {p.kcal} kcal
-                      </button>
-                    ))}
-                  </div>
+      {/* Selected items + portion pickers */}
+      {selected.length > 0 && (
+        <div className="bg-bg rounded-xl p-3 mb-3 space-y-3">
+          {selected.map(foodId => {
+            const food = FOOD_MAP[foodId]
+            if (!food) return null
+            return (
+              <div key={foodId}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[13px] font-medium text-ink">{food.name}</span>
+                  <button
+                    onClick={() => toggleFood(foodId)}
+                    className="text-[11px] text-ink-2 hover:text-ink transition-colors"
+                  >
+                    Remove
+                  </button>
                 </div>
-              )
-            })}
-          </div>
-        )}
-
-        {/* Free text + LLM estimation */}
-        <textarea
-          value={meal.freeText}
-          onChange={e => onChange({
-            ...meal,
-            freeText: e.target.value,
-            freeTextKcal: undefined,
-            freeTextMacros: undefined,
-          })}
-          placeholder="Add anything else with quantities for calorie estimates (e.g. 1 cup yogurt, 30 g cheese, 2 tbsp peanut butter)…"
-          className="w-full border border-border rounded-[10px] px-3 py-2.5 text-[13px] text-ink bg-card placeholder:text-ink-2/50 outline-none focus:border-ink resize-none min-h-[56px] transition-colors"
-        />
-
-        {/* Estimate button + result */}
-        {meal.freeText.trim().length > 0 && (
-          <div className="mt-2">
-            <button
-              onClick={estimateCalories}
-              disabled={loading}
-              className="text-[11px] text-ink underline underline-offset-2 disabled:opacity-40 cursor-pointer hover:text-ink-2 transition-colors"
-            >
-              {loading ? 'Estimating…' : hasEstimate ? 'Re-estimate calories & macros' : 'Estimate calories & macros'}
-            </button>
-
-            {error && (
-              <p className="text-[11px] text-red-500 mt-1">{error}</p>
-            )}
-
-            {hasEstimate && breakdown.length > 0 && (
-              <div className="mt-2 bg-bg rounded-lg p-2.5 space-y-1">
-                {breakdown.map((b, i) => (
-                  <div key={i} className="flex justify-between text-[11px] text-ink-2">
-                    <span>{b.item}</span>
-                    <span>{b.kcal} kcal</span>
-                  </div>
-                ))}
-                <div className="pt-1.5 mt-1 border-t border-border">
-                  <div className="flex justify-between text-[12px] font-medium text-ink mb-1">
-                    <span>Free text total</span>
-                    <span>~{meal.freeTextKcal} kcal</span>
-                  </div>
-                  {meal.freeTextMacros && (
-                    <p className="text-[11px] text-ink-2">
-                      P {Math.round(meal.freeTextMacros.protein_g)}g · C {Math.round(meal.freeTextMacros.carb_g)}g · F {Math.round(meal.freeTextMacros.fat_g)}g · Fi {Math.round(meal.freeTextMacros.fiber_g)}g
-                    </p>
-                  )}
+                <div className="flex flex-wrap gap-1.5">
+                  {food.portions.map(p => (
+                    <button
+                      key={p.label}
+                      onClick={() => setPortion(foodId, p.label)}
+                      className={`border rounded-[14px] px-2.5 py-1 text-[11px] cursor-pointer transition-colors
+                        ${meal.selections[foodId] === p.label
+                          ? 'bg-ink border-ink text-card'
+                          : 'bg-card border-border text-ink-2 hover:border-ink'}`}
+                    >
+                      {p.label} · {p.kcal} kcal
+                    </button>
+                  ))}
                 </div>
               </div>
-            )}
-          </div>
-        )}
-      </Card>
-    </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Free text + LLM estimation */}
+      <textarea
+        value={meal.freeText}
+        onChange={e => onChange({
+          ...meal,
+          freeText: e.target.value,
+          freeTextKcal: undefined,
+          freeTextMacros: undefined,
+        })}
+        placeholder={placeholder}
+        rows={2}
+        className="w-full border border-border rounded-[10px] px-3 py-2.5 text-[13px] text-ink bg-card placeholder:text-ink-2/50 outline-none focus:border-ink resize-none transition-colors"
+      />
+
+      {meal.freeText.trim().length > 0 && (
+        <div className="mt-2">
+          <button
+            onClick={estimateCalories}
+            disabled={loading}
+            className="text-[11px] text-ink underline underline-offset-2 disabled:opacity-40 cursor-pointer hover:text-ink-2 transition-colors"
+          >
+            {loading ? 'Estimating…' : hasEstimate ? 'Re-estimate calories & macros' : 'Estimate calories & macros'}
+          </button>
+          {error && <p className="text-[11px] text-red-500 mt-1">{error}</p>}
+          {hasEstimate && breakdown.length > 0 && (
+            <div className="mt-2 bg-bg rounded-lg p-2.5 space-y-1">
+              {breakdown.map((b, i) => (
+                <div key={i} className="flex justify-between text-[11px] text-ink-2">
+                  <span>{b.item}</span>
+                  <span>{b.kcal} kcal</span>
+                </div>
+              ))}
+              <div className="pt-1.5 mt-1 border-t border-border">
+                <div className="flex justify-between text-[12px] font-medium text-ink mb-1">
+                  <span>Total</span>
+                  <span>~{meal.freeTextKcal} kcal</span>
+                </div>
+                {meal.freeTextMacros && (
+                  <p className="text-[11px] text-ink-2">
+                    P {Math.round(meal.freeTextMacros.protein_g)}g · C {Math.round(meal.freeTextMacros.carb_g)}g · F {Math.round(meal.freeTextMacros.fat_g)}g
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </Card>
   )
 }
 
@@ -268,175 +296,371 @@ function MealSection({
 
 export default function DietEntryPage() {
   const router = useRouter()
+  const { history, activity } = mockData.questionnaire
 
-  const [log,  setLog]  = useState<DietLog>(() => getDietLog() ?? EMPTY_LOG())
-  const [goal, setGoal] = useState<DietaryGoal>(() => getDietaryGoal())
+  // Derive activity level from questionnaire data as the starting suggestion
+  const derived = deriveActivityLevel(activity)
 
-  const totalKcal       = estimateDietCalories(log)
-  const totalMacros     = estimateDietMacros(log)
-  const tdee            = computeTDEE(mockData.questionnaire.history, mockData.questionnaire.activity)
-  const macroTargets    = computeMacroTargets(mockData.questionnaire.history, mockData.questionnaire.activity)
-  const goalMultiplier  = GOALS.find(g => g.id === goal)?.multiplier ?? 1.0
-  const adjustedTarget  = tdee !== null ? Math.round(tdee * goalMultiplier) : null
+  // ── Step 1 state ─────────────────────────────────────────────────────────
+  const [step,          setStep]         = useState<1 | 2>(1)
+  const [goal,          setGoal]         = useState<DietaryGoal>(() => getDietaryGoal())
+  const [targetWeightKg, setTargetWeight] = useState<string>(() => {
+    const a = getDietAssessment()
+    return a?.targetWeightKg ? String(a.targetWeightKg) : ''
+  })
+  const [pace,          setPace]         = useState<DietPace>(() => getDietAssessment()?.pace ?? 'steady')
+  const [activityLevel, setActivityLevel] = useState<ActivityLevel>(() => {
+    const a = getDietAssessment()
+    return a?.activityLevel ?? derived
+  })
+  const [macroApproach, setMacroApproach] = useState<MacroApproach>(() => getDietAssessment()?.macroApproach ?? 'balanced')
+
+  // ── Step 2 state ─────────────────────────────────────────────────────────
+  const [log,         setLog]         = useState<DietLog>(() => getDietLog() ?? EMPTY_LOG())
+  const [variability, setVariability] = useState<DietVariability>(() => getDietAssessment()?.variability ?? 'consistent')
+
+  // ── Live TDEE calculations ────────────────────────────────────────────────
+  const currentWeightKg = history.unit === 'metric'
+    ? parseFloat(history.weightKg) || null
+    : parseFloat(history.weightLbs) ? parseFloat(history.weightLbs) * 0.453592 : null
+
+  const tdee = computeTDEEFromLevel(history, activityLevel)
+  const targetCalories = tdee ? computeTargetCalories(tdee, goal, pace) : null
+  const macroTargets = currentWeightKg && targetCalories
+    ? computeMacroTargetsV2(currentWeightKg, targetCalories, macroApproach, history.sex)
+    : null
+
+  const totalKcal   = estimateDietCalories(log)
+  const totalMacros = estimateDietMacros(log)
 
   function updateMeal(slot: MealSlot, meal: DietMeal) {
     setLog(prev => ({ ...prev, [slot]: meal }))
   }
 
-  function handleGoalChange(g: DietaryGoal) {
-    setGoal(g)
-    saveDietaryGoal(g)
-  }
-
   function handleSave() {
     saveDietLog(log)
+    saveDietaryGoal(goal)
+    saveDietAssessment({
+      completedDate: new Date().toISOString().split('T')[0],
+      cycleId:       mockData.currentCycle.id,
+      age:           history.age ?? 0,
+      activityLevel,
+      goal,
+      proteinTarget: macroApproach === 'high_protein' ? 'high' : 'standard',
+      carbApproach:  macroApproach === 'low_carb' ? 'low' : 'standard',
+      mealCount:     4,
+      bmr:           tdee ? Math.round(tdee / ACTIVITY_MULTIPLIER[activityLevel]) : 0,
+      tdee:          tdee ?? 0,
+      macros: macroTargets
+        ? { protein_g: macroTargets.protein_g, carbs_g: macroTargets.carbs_g, fat_g: macroTargets.fat_g }
+        : { protein_g: 0, carbs_g: 0, fat_g: 0 },
+      targetWeightKg: targetWeightKg ? parseFloat(targetWeightKg) : undefined,
+      pace,
+      macroApproach,
+      variability,
+      targetTdee: targetCalories ?? undefined,
+    })
     router.push('/labs/entry')
   }
 
-  function handleSkip() {
-    router.push('/labs/entry')
-  }
+  // ── Step 1 ────────────────────────────────────────────────────────────────
+  if (step === 1) {
+    const showTargetWeight = goal === 'lose_weight' || goal === 'gain_weight'
+    const showPace         = goal !== 'maintain'
+    const currentWtDisplay = currentWeightKg ? currentWeightKg.toFixed(1) : '—'
 
-  return (
-    <div className="min-h-screen bg-bg pb-28">
-      <BrandHeader />
+    return (
+      <div className="min-h-screen bg-bg pb-28">
+        <BrandHeader />
+        <div className="px-6 pt-5">
+          <p className="text-[11px] tracking-[.07em] uppercase text-ink-2 mb-1.5">Diet · Step 1 of 2</p>
+          <h2 className="font-serif text-[26px] font-medium text-ink leading-snug mb-1">
+            Set your nutrition goal.
+          </h2>
+          <p className="text-[13px] text-ink-2 leading-relaxed mb-6">
+            We'll use your questionnaire data to suggest the right targets — confirm or adjust below.
+          </p>
 
-      <div className="px-6 pt-5">
-        <p className="text-[11px] tracking-[.07em] uppercase text-ink-2 mb-1.5">Diet</p>
-        <h2 className="font-serif text-[19px] font-medium text-ink leading-snug mb-1">
-          What does a typical day look like?
-        </h2>
-        <p className="text-[13px] text-ink-2 leading-relaxed mb-5">
-          Select everything you usually eat and drink. Calorie and macro estimates are approximate.
-        </p>
-
-        {/* Calorie + macro overview card */}
-        <Card className="mb-6 bg-bg-soft">
-          {/* Goal selector */}
-          <p className="text-[11px] uppercase tracking-[.06em] text-ink-2 mb-2">Your goal</p>
-          <div className="flex gap-2 mb-4">
+          {/* Goal */}
+          <SectionLabel>What's your goal right now?</SectionLabel>
+          <div className="grid grid-cols-2 gap-2 mb-1">
             {GOALS.map(g => (
               <button
                 key={g.id}
-                onClick={() => handleGoalChange(g.id)}
-                className={`flex-1 flex flex-col items-center py-2 px-1 rounded-xl border text-center transition-colors ${
-                  goal === g.id
-                    ? 'bg-ink border-ink text-bg'
-                    : 'bg-card border-border text-ink hover:border-ink'
-                }`}
+                onClick={() => setGoal(g.id)}
+                className={`flex flex-col items-start p-4 rounded-2xl border text-left transition-colors cursor-pointer
+                  ${goal === g.id ? 'bg-ink border-ink text-card' : 'bg-card border-border text-ink hover:border-ink-2'}`}
               >
-                <span className="text-[12px] font-medium leading-snug">{g.label}</span>
-                <span className={`text-[10px] leading-snug mt-0.5 ${goal === g.id ? 'opacity-60' : 'text-ink-2'}`}>
-                  {g.sub}
-                </span>
+                <span className={`text-[20px] mb-1 ${goal === g.id ? 'opacity-80' : 'opacity-40'}`}>{g.emoji}</span>
+                <span className="text-[14px] font-medium leading-tight">{g.label}</span>
+                <span className={`text-[11px] mt-0.5 ${goal === g.id ? 'opacity-60' : 'text-ink-2'}`}>{g.sub}</span>
               </button>
             ))}
           </div>
 
-          {/* Calorie row */}
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-[11px] uppercase tracking-[.06em] text-ink-2 mb-0.5">Logged so far</p>
-              <p className="font-serif text-[28px] font-medium text-ink leading-none">
-                ~{totalKcal.toLocaleString()}
-                <span className="text-[14px] font-sans font-normal text-ink-2 ml-1">kcal</span>
-              </p>
+          {/* Current + target weight */}
+          <SectionLabel>Weight</SectionLabel>
+          <div className="bg-card border border-border rounded-2xl px-5 py-4 mb-1">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[11px] uppercase tracking-[.05em] text-ink-2 mb-0.5">Current</p>
+                <p className="font-serif text-[22px] font-medium text-ink">
+                  {currentWtDisplay} <span className="text-[13px] font-sans font-normal text-ink-2">kg</span>
+                </p>
+              </div>
+              {showTargetWeight && (
+                <div className="text-right">
+                  <p className="text-[11px] uppercase tracking-[.05em] text-ink-2 mb-0.5">Target (optional)</p>
+                  <div className="flex items-baseline gap-1">
+                    <input
+                      type="number"
+                      value={targetWeightKg}
+                      onChange={e => setTargetWeight(e.target.value)}
+                      placeholder="—"
+                      min={30}
+                      max={200}
+                      className="w-16 text-right font-serif text-[22px] font-medium text-ink bg-transparent border-b border-ink-2 focus:border-ink outline-none pb-0.5"
+                    />
+                    <span className="text-[13px] text-ink-2">kg</span>
+                  </div>
+                </div>
+              )}
             </div>
-            {adjustedTarget !== null && (
+          </div>
+
+          {/* Pace */}
+          {showPace && (
+            <>
+              <SectionLabel>How would you like to get there?</SectionLabel>
+              <div className="flex gap-2 mb-1">
+                {PACES.map(p => (
+                  <button
+                    key={p.id}
+                    onClick={() => setPace(p.id)}
+                    className={`flex-1 flex flex-col items-center py-3 px-1 rounded-2xl border text-center transition-colors cursor-pointer
+                      ${pace === p.id ? 'bg-ink border-ink text-card' : 'bg-card border-border text-ink hover:border-ink-2'}`}
+                  >
+                    <span className="text-[13px] font-medium leading-tight">{p.label}</span>
+                    <span className={`text-[11px] mt-0.5 ${pace === p.id ? 'opacity-60' : 'text-ink-2'}`}>{p.sub}</span>
+                  </button>
+                ))}
+              </div>
+              {tdee && (
+                <p className="text-[11px] text-ink-2 mb-1">
+                  Daily target: ~{computeTargetCalories(tdee, goal, pace).toLocaleString()} kcal
+                  {goal === 'lose_weight' ? ` (${PACE_KCAL[pace]} kcal below maintenance)` : ` (${PACE_KCAL[pace]} kcal above maintenance)`}
+                </p>
+              )}
+            </>
+          )}
+
+          {/* Activity level — derived, confirm or adjust */}
+          <SectionLabel>Activity level</SectionLabel>
+          <div className="bg-card border border-border rounded-2xl px-5 py-4 mb-1">
+            <p className="text-[13px] text-ink mb-3">
+              Based on your questionnaire, we think you're{' '}
+              <span className="font-medium">{ACTIVITY_LABEL_SHORT[derived]}</span>.{' '}
+              Does that sound right?
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {ACTIVITY_LEVELS.map(lv => (
+                <button
+                  key={lv}
+                  onClick={() => setActivityLevel(lv)}
+                  className={`border rounded-full px-3 py-1 text-[12px] transition-colors cursor-pointer
+                    ${activityLevel === lv
+                      ? 'bg-ink border-ink text-card'
+                      : lv === derived
+                        ? 'bg-accent border-accent text-ink hover:border-ink-2'
+                        : 'bg-card border-border text-ink-2 hover:border-ink'}`}
+                >
+                  {ACTIVITY_LABEL_SHORT[lv]}
+                </button>
+              ))}
+            </div>
+            {activityLevel !== derived && (
+              <p className="text-[11px] text-ink-2 mt-2">
+                Adjusted from "{ACTIVITY_LABEL_SHORT[derived]}"
+              </p>
+            )}
+          </div>
+
+          {/* Macro approach */}
+          <SectionLabel>How would you like your plan balanced?</SectionLabel>
+          <div className="space-y-2 mb-1">
+            {MACRO_APPROACHES.map(a => (
+              <button
+                key={a.id}
+                onClick={() => setMacroApproach(a.id)}
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl border text-left transition-colors cursor-pointer
+                  ${macroApproach === a.id ? 'bg-ink border-ink text-card' : 'bg-card border-border text-ink hover:border-ink-2'}`}
+              >
+                <div>
+                  <span className="text-[13px] font-medium">{a.label}</span>
+                  <p className={`text-[11px] mt-0.5 ${macroApproach === a.id ? 'opacity-60' : 'text-ink-2'}`}>{a.sub}</p>
+                </div>
+                {macroApproach === a.id && (
+                  <div className="w-4 h-4 rounded-full bg-card/20 flex items-center justify-center shrink-0">
+                    <div className="w-2 h-2 rounded-full bg-card" />
+                  </div>
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* TDEE summary card */}
+          {targetCalories && (
+            <Card className="mt-4 mb-2 bg-bg-soft">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <p className="text-[11px] uppercase tracking-[.05em] text-ink-2 mb-0.5">Daily target</p>
+                  <p className="font-serif text-[28px] font-medium text-ink leading-none">
+                    ~{targetCalories.toLocaleString()}
+                    <span className="text-[14px] font-sans font-normal text-ink-2 ml-1">kcal</span>
+                  </p>
+                </div>
+                {tdee && (
+                  <div className="text-right">
+                    <p className="text-[11px] uppercase tracking-[.05em] text-ink-2 mb-0.5">Maintenance</p>
+                    <p className="text-[20px] font-medium text-ink-2">~{tdee.toLocaleString()}</p>
+                  </div>
+                )}
+              </div>
+              {macroTargets && (
+                <div className="border-t border-border pt-3 grid grid-cols-3 gap-2 text-center">
+                  {[
+                    { label: 'Protein', value: macroTargets.protein_g },
+                    { label: 'Carbs',   value: macroTargets.carbs_g },
+                    { label: 'Fat',     value: macroTargets.fat_g },
+                  ].map(({ label, value }) => (
+                    <div key={label}>
+                      <p className="text-[11px] text-ink-2">{label}</p>
+                      <p className="text-[16px] font-medium text-ink">{value}g</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+          )}
+        </div>
+
+        <div className="fixed bottom-0 left-0 right-0 bg-bg border-t border-border px-6 py-4 flex gap-3">
+          <Button variant="outline" onClick={() => router.push('/questionnaire')}>
+            Back
+          </Button>
+          <Button variant="filled" className="flex-1" onClick={() => setStep(2)}>
+            Next — log typical day
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Step 2 ────────────────────────────────────────────────────────────────
+
+  return (
+    <div className="min-h-screen bg-bg pb-28">
+      <BrandHeader />
+      <div className="px-6 pt-5">
+        <button
+          onClick={() => setStep(1)}
+          className="flex items-center gap-1 text-[12px] text-ink-2 hover:text-ink transition-colors mb-4 cursor-pointer"
+        >
+          <IconChevronLeft size={14} strokeWidth={1.5} />
+          Edit goals
+        </button>
+
+        <p className="text-[11px] tracking-[.07em] uppercase text-ink-2 mb-1.5">Diet · Step 2 of 2</p>
+        <h2 className="font-serif text-[26px] font-medium text-ink leading-snug mb-1">
+          A typical day for you.
+        </h2>
+        <p className="text-[13px] text-ink-2 leading-relaxed mb-5">
+          Describe what you usually eat. We'll estimate your calories and macros to compare against your target.
+        </p>
+
+        {/* Target summary strip */}
+        {targetCalories && (
+          <div className="bg-card border border-border rounded-2xl px-5 py-3 mb-5 flex items-center justify-between">
+            <div>
+              <p className="text-[11px] text-ink-2">Your daily target</p>
+              <p className="font-serif text-[20px] font-medium text-ink leading-tight">~{targetCalories.toLocaleString()} kcal</p>
+            </div>
+            {totalKcal > 0 && (
               <div className="text-right">
-                <p className="text-[11px] uppercase tracking-[.06em] text-ink-2 mb-0.5">Daily target</p>
-                <p className="font-serif text-[28px] font-medium text-ink leading-none">
-                  ~{adjustedTarget.toLocaleString()}
-                  <span className="text-[14px] font-sans font-normal text-ink-2 ml-1">kcal</span>
+                <p className="text-[11px] text-ink-2">Logged so far</p>
+                <p className={`font-serif text-[20px] font-medium leading-tight ${
+                  totalKcal > targetCalories * 1.1 ? 'text-[#C77D2E]' : 'text-ink'}`}>
+                  ~{totalKcal.toLocaleString()} kcal
                 </p>
               </div>
             )}
           </div>
-
-          {/* Calorie progress bar */}
-          {adjustedTarget !== null && totalKcal > 0 && (
-            <div className="mt-3 mb-4">
-              <div className="h-1.5 bg-border rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-ink rounded-full transition-all"
-                  style={{ width: `${Math.min(100, Math.round((totalKcal / adjustedTarget) * 100))}%` }}
-                />
-              </div>
-              <p className="text-[11px] text-ink-2 mt-1">
-                {Math.round((totalKcal / adjustedTarget) * 100)}% of daily target
-                {goal !== 'maintain' && tdee !== null && (
-                  <span className="ml-1 opacity-70">
-                    (maintenance: ~{tdee.toLocaleString()} kcal)
-                  </span>
-                )}
-              </p>
-            </div>
-          )}
-
-          {/* Macro breakdown — shown as soon as anything is logged */}
-          {totalKcal > 0 && (
-            <div className="border-t border-border pt-3 space-y-2">
-              <MacroBar
-                label="Protein"
-                value={totalMacros.protein_g}
-                target={macroTargets?.protein_g}
-                color="bg-ink"
-              />
-              <MacroBar
-                label="Carbs"
-                value={totalMacros.carb_g}
-                target={macroTargets?.carb_g}
-                color="bg-ink-2"
-              />
-              <MacroBar
-                label="Fat"
-                value={totalMacros.fat_g}
-                target={macroTargets?.fat_g}
-                color="bg-ink-2"
-              />
-              <MacroBar
-                label="Fiber"
-                value={totalMacros.fiber_g}
-                target={macroTargets?.fiber_g}
-                color="bg-ink"
-              />
-            </div>
-          )}
-        </Card>
+        )}
 
         {/* Meal sections */}
-        {MEAL_CONFIG.map(({ slot, label, sub }) => (
+        {MEAL_CONFIG.map(({ slot, label, placeholder }) => (
           <MealSection
             key={slot}
             slot={slot}
             label={label}
-            sub={sub}
+            placeholder={placeholder}
             meal={log[slot]}
             onChange={meal => updateMeal(slot, meal)}
           />
         ))}
 
-        {/* Supplements / other */}
-        <Card className="mb-3">
-          <p className="text-[14px] font-medium text-ink mb-1">Supplements & other</p>
-          <p className="text-[12px] text-ink-2 mb-3">
-            Vitamins, protein powder, post-dinner snacks, or anything not listed above.
+        {/* Macro summary */}
+        {totalKcal > 0 && (
+          <Card className="mb-3 bg-bg-soft">
+            <p className="text-[11px] uppercase tracking-[.06em] text-ink-2 mb-2">Today's total</p>
+            <p className="font-serif text-[24px] font-medium text-ink mb-3">
+              ~{totalKcal.toLocaleString()} kcal
+            </p>
+            <div className="grid grid-cols-3 gap-2 text-center border-t border-border pt-3">
+              {[
+                { label: 'Protein', value: totalMacros.protein_g, target: macroTargets?.protein_g },
+                { label: 'Carbs',   value: totalMacros.carb_g,    target: macroTargets?.carbs_g },
+                { label: 'Fat',     value: totalMacros.fat_g,      target: macroTargets?.fat_g },
+              ].map(({ label, value, target }) => (
+                <div key={label}>
+                  <p className="text-[11px] text-ink-2">{label}</p>
+                  <p className="text-[15px] font-medium text-ink">
+                    {Math.round(value)}g
+                    {target && <span className="text-[11px] font-normal text-ink-2"> /{target}g</span>}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
+
+        {/* Variability check */}
+        <div className="mt-2 mb-6">
+          <p className="text-[13px] font-medium text-ink mb-3">
+            How consistent is this day-to-day?
           </p>
-          <textarea
-            value={log.supplements}
-            onChange={e => setLog(prev => ({ ...prev, supplements: e.target.value }))}
-            placeholder="e.g. Vitamin D 2000 IU, whey protein, evening chocolate…"
-            className="w-full border border-border rounded-[10px] px-3 py-2.5 text-[13px] text-ink bg-card placeholder:text-ink-2/50 outline-none focus:border-ink resize-none min-h-[64px] transition-colors"
-          />
-        </Card>
+          <div className="flex flex-wrap gap-2">
+            {VARIABILITY_OPTIONS.map(v => (
+              <Chip key={v.id} active={variability === v.id} onClick={() => setVariability(v.id)}>
+                {v.label}
+              </Chip>
+            ))}
+          </div>
+          <p className="text-[11px] text-ink-2 mt-2">
+            {variability === 'consistent'
+              ? "Great — we'll treat this as your baseline."
+              : variability === 'varies_bit'
+                ? "We'll use this as a loose average and flag bigger gaps."
+                : "Noted — your plan will be based on typical ranges rather than daily targets."}
+          </p>
+        </div>
       </div>
 
-      {/* Bottom bar */}
       <div className="fixed bottom-0 left-0 right-0 bg-bg border-t border-border px-6 py-4 flex gap-3">
-        <Button variant="outline" onClick={handleSkip}>
+        <Button variant="outline" onClick={() => router.push('/labs/entry')}>
           Skip for now
         </Button>
-        <Button variant="outline" className="flex-1" onClick={handleSave}>
+        <Button variant="filled" className="flex-1" onClick={handleSave}>
           Save & continue
         </Button>
       </div>

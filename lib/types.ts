@@ -259,13 +259,16 @@ export interface PlanBaselines {
   stepsPerDay: number | null             // self-reported or device-synced; null = unknown
 }
 
-export type DietaryGoal = 'lose_weight' | 'maintain' | 'gain_muscle'
+export type DietaryGoal = 'lose_weight' | 'maintain' | 'gain_weight' | 'gain_muscle'
 
 // ── Diet Assessment (one-time per cycle) ──────────────────────────────────────
 // Estimates daily calorie and macro targets from biometric + goal inputs.
 // Computed once per 90-day cycle; not a daily food diary.
 
-export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active'
+export type DietPace        = 'gentle' | 'steady' | 'faster'
+export type MacroApproach   = 'balanced' | 'high_protein' | 'low_carb' | 'custom'
+export type DietVariability = 'consistent' | 'varies_bit' | 'varies_lot'
+export type ActivityLevel   = 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active'
 export type ProteinTarget = 'standard' | 'high' | 'athlete'
 export type CarbApproach  = 'low' | 'moderate' | 'standard'
 
@@ -302,6 +305,12 @@ export interface DietAssessment {
     carbs_g:   number
     fat_g:     number
   }
+  // v2 additions
+  targetWeightKg?: number
+  pace?:           DietPace
+  macroApproach?:  MacroApproach
+  variability?:    DietVariability
+  targetTdee?:     number           // TDEE adjusted for goal+pace
 }
 
 export interface AppData {

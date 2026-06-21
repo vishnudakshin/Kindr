@@ -22,6 +22,7 @@ function calcBMR(weightKg: number, heightCm: number, age: number, sex: string): 
 const GOAL_MULTIPLIER: Record<DietaryGoal, number> = {
   lose_weight:  0.85,
   maintain:     1.0,
+  gain_weight:  1.10,
   gain_muscle:  1.10,
 }
 

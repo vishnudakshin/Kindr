@@ -5,7 +5,7 @@
 // composition tables and USDA references. Each item declares which meal slots
 // it belongs to; the diet entry page filters by slot.
 
-import type { HistoryResponses, ActivityResponses, DietMeal, DietLog, MacroNutrients } from './types'
+import type { HistoryResponses, ActivityResponses, DietMeal, DietLog, MacroNutrients, ActivityLevel, DietaryGoal, DietPace } from './types'
 
 export type MealSlot = 'breakfast' | 'midMorning' | 'lunch' | 'evening' | 'dinner' | 'beverages'
 
@@ -490,4 +490,107 @@ export function computeMacroTargets(
     carb_g:    Math.round(tdee * 0.50 / 4),
     fiber_g:   isFemale ? 25 : 38,
   }
+}
+
+// ── Activity level derivation from IPAQ-style questionnaire ──────────────────
+export function deriveActivityLevel(activity: {
+  mvpaDays: number; mvpaMinutes: number; strengthDays: number; sittingHours: number
+}): ActivityLevel {
+  const weeklyMvpaMin = (activity.mvpaDays || 0) * (activity.mvpaMinutes || 0)
+  const strengthMin   = (activity.strengthDays || 0) * 30
+  const totalActive   = weeklyMvpaMin + strengthMin
+  const sitting       = activity.sittingHours || 0
+  if (totalActive >= 300 || activity.mvpaDays >= 5) return 'very_active'
+  if (totalActive >= 150 || activity.mvpaDays >= 3) return 'active'
+  if (totalActive >= 60  || activity.mvpaDays >= 1) return 'moderate'
+  if (sitting >= 8) return 'sedentary'
+  return 'light'
+}
+
+export const ACTIVITY_MULTIPLIER: Record<ActivityLevel, number> = {
+  sedentary:   1.20,
+  light:       1.375,
+  moderate:    1.55,
+  active:      1.725,
+  very_active: 1.90,
+}
+
+export const ACTIVITY_LABEL_SHORT: Record<ActivityLevel, string> = {
+  sedentary:   'Sedentary',
+  light:       'Lightly active',
+  moderate:    'Moderately active',
+  active:      'Active',
+  very_active: 'Very active',
+}
+
+export const ACTIVITY_LABEL_FULL: Record<ActivityLevel, string> = {
+  sedentary:   'Sedentary (desk job, little movement)',
+  light:       'Lightly active (walking, light activity)',
+  moderate:    'Moderately active (3–4 workouts/week)',
+  active:      'Active (5+ workouts/week)',
+  very_active: 'Very active (daily intense training)',
+}
+
+export function computeTDEEFromLevel(
+  history: { unit: string; weightKg: string; weightLbs: string; heightCm: string;
+             heightFt: string; heightIn: string; age: number | null; sex: string },
+  level: ActivityLevel,
+): number | null {
+  let wkg: number | null = null
+  let hcm: number | null = null
+  if (history.unit === 'metric') {
+    wkg = parseFloat(history.weightKg) || null
+    hcm = parseFloat(history.heightCm) || null
+  } else {
+    const lbs = parseFloat(history.weightLbs)
+    const ft  = parseFloat(history.heightFt) || 0
+    const ins = parseFloat(history.heightIn) || 0
+    wkg = lbs ? lbs * 0.453592 : null
+    hcm = (ft || ins) ? (ft * 12 + ins) * 2.54 : null
+  }
+  const age = history.age
+  if (!wkg || !hcm || !age) return null
+  const base = 10 * wkg + 6.25 * hcm - 5 * age
+  const bmr  = /male/i.test(history.sex) && !/female/i.test(history.sex) ? base + 5 : base - 161
+  return Math.round(bmr * ACTIVITY_MULTIPLIER[level])
+}
+
+export const PACE_KCAL: Record<DietPace, number> = {
+  gentle: 275,
+  steady: 550,
+  faster: 1000,
+}
+
+export function computeTargetCalories(
+  tdee: number, goal: DietaryGoal, pace: DietPace = 'steady',
+): number {
+  if (goal === 'maintain') return tdee
+  const delta = PACE_KCAL[pace]
+  if (goal === 'lose_weight') return Math.max(1200, tdee - delta)
+  if (goal === 'gain_muscle') return tdee + Math.min(delta, 275)
+  return tdee + delta
+}
+
+export function computeMacroTargetsV2(
+  weightKg: number,
+  targetCalories: number,
+  approach: string = 'balanced',
+  sex: string = 'female',
+): { protein_g: number; carbs_g: number; fat_g: number; fiber_g: number } {
+  const isFemale = /female/i.test(sex)
+  let proteinG: number, fatG: number, carbG: number
+  if (approach === 'high_protein') {
+    proteinG = Math.round(weightKg * 2.0)
+    fatG     = Math.round(targetCalories * 0.25 / 9)
+    carbG    = Math.max(50, Math.round((targetCalories - proteinG * 4 - fatG * 9) / 4))
+  } else if (approach === 'low_carb') {
+    carbG    = Math.min(100, Math.round(targetCalories * 0.15 / 4))
+    proteinG = Math.round(weightKg * 1.4)
+    fatG     = Math.round((targetCalories - proteinG * 4 - carbG * 4) / 9)
+  } else {
+    proteinG = Math.round(weightKg * 1.2)
+    fatG     = Math.round(targetCalories * 0.30 / 9)
+    carbG    = Math.round((targetCalories - proteinG * 4 - fatG * 9) / 4)
+  }
+  return { protein_g: proteinG, carbs_g: Math.max(50, carbG), fat_g: Math.max(20, fatG), fiber_g: isFemale ? 25 : 38 }
 }

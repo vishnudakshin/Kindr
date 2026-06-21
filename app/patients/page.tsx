@@ -123,7 +123,8 @@ function DietTab({ data }: { data: AppData }) {
   const goalLabel: Record<string, string> = {
     lose_weight:  'Lose weight',
     maintain:     'Maintain',
-    gain_muscle:  'Gain muscle',
+    gain_weight:  'Gain weight',
+    gain_muscle:  'Build muscle',
   }
 
   const dietGoal = data.dietaryGoal
